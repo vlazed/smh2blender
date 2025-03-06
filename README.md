@@ -82,8 +82,11 @@ This will print more bone names to the console than the previous step. Copy ever
 These maps allow the animator to proceed to the next steps of exchanging animations between GMod and Blender.
 
 ### Blender to Stop Motion Helper
-> [!NOTE] This tutorial assumes that you have followed the [Obtaining maps](#obtaining-maps) tutorial.
-> [!NOTE] Some knowledge on decompiling models with Crowbar is required.
+> [!NOTE] 
+> This tutorial assumes that you have followed the [Obtaining maps](#obtaining-maps) tutorial.
+
+> [!IMPORTANT] 
+> Some knowledge on decompiling models with Crowbar is required.
 
 For animations to properly show undistorted on a model in Stop Motion Helper, the following prerequisites must be met:
 - The skeleton (and, in general, its model) in Blender and Stop Motion Helper **must be the same!** 
