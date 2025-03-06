@@ -183,7 +183,6 @@ class BoneFrame(Frame):
 
     # manip_matrix is in local space
     def calculate(self, fcurves: ActionFCurves, frame: int):
-        # TODO: Fix wrong matrices
         matrix_basis = get_matrix_basis_from_fcurve(self.bone, fcurves, frame)
         rest_matrix = self.bone.matrix_basis
 
@@ -191,7 +190,7 @@ class BoneFrame(Frame):
         self.scale = matrix_basis.to_scale()
 
         rest_matrix.to_3x3().rotate(matrix_basis.to_euler(ORDER))
-        self.ang = rest_matrix.to_euler(ORDER)
+        self.ang = matrix_basis.to_euler(ORDER)
 
     def to_json(self):
         return {
@@ -217,7 +216,6 @@ class PhysBoneFrame(Frame):
             local_matrix = parent_matrix.inverted() @ matrix
             self.local_pos = local_matrix.translation
 
-            # TODO: Fix wrong rotations
             self.local_ang = local_matrix.to_euler(ORDER)
 
     def to_json(self):

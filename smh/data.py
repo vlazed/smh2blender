@@ -55,15 +55,41 @@ class SMHEntityData():
 
 
 class SMHProperties(bpy.types.PropertyGroup):
+    def set_model(self, value: str):
+        if len(value.strip()) == 0:
+            return
+
+        self["model"] = value
+
+    def get_model(self):
+        return self["model"]
+
     model: StringProperty(
         name="Model path",
         default="models/kleiner.mdl",
-        description="The location of the model with respect to the game's root folder)"
+        description="The location of the model with respect to the game's root folder)",
+        set=set_model,
+        get=get_model
     )
+
+    def set_name(self, value: str):
+        if len(value.strip()) == 0:
+            value = os.path.basename(self.model)
+
+        if len(value) == 0:
+            return
+
+        self["name"] = value
+
+    def get_name(self):
+        return self["name"]
+
     name: StringProperty(
         name="Name",
         default="kleiner",
-        description="A unique identifier of the model, which Stop Motion Helper displays to the user (rather than e.g. kleiner.mdl)"
+        description="A unique identifier of the model, which Stop Motion Helper displays to the user (rather than e.g. kleiner.mdl)",
+        set=set_name,
+        get=get_name,
     )
     cls: EnumProperty(
         name="Class",
