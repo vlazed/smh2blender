@@ -45,7 +45,7 @@ def get_matrix_basis_from_fcurve(pbone: PoseBone, fcurves: ActionFCurves, frame:
             break
         temp_ang[i] = fc.evaluate(frame)
     else:
-        ang = ang
+        ang = temp_ang
     rot = ang.to_matrix().to_4x4()
 
     return trans @ rot @ scale

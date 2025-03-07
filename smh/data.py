@@ -62,11 +62,10 @@ class SMHProperties(bpy.types.PropertyGroup):
         self["model"] = value
 
     def get_model(self):
-        return self["model"]
+        return self.get("model", "models/kleiner.mdl")
 
     model: StringProperty(
         name="Model path",
-        default="models/kleiner.mdl",
         description="The location of the model with respect to the game's root folder)",
         set=set_model,
         get=get_model
@@ -82,11 +81,10 @@ class SMHProperties(bpy.types.PropertyGroup):
         self["name"] = value
 
     def get_name(self):
-        return self["name"]
+        return self.get("name", "kleiner")
 
     name: StringProperty(
         name="Name",
-        default="kleiner",
         description="A unique identifier of the model, which Stop Motion Helper displays to the user (rather than e.g. kleiner.mdl)",
         set=set_name,
         get=get_name,
