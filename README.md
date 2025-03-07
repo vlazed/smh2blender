@@ -4,17 +4,25 @@ Exchange animations between Garry's Mod Stop Motion Helper and Blender
 
 ## Table of Contents <!-- omit from toc -->
 - [SMH 2 Blender](#smh-2-blender)
+  - [Requirements](#requirements)
   - [Features](#features)
   - [Remarks](#remarks)
+  - [Issues](#issues)
 - [Tutorials](#tutorials)
   - [Obtaining maps](#obtaining-maps)
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
+- [Pull Requests](#pull-requests)
+- [Acknowledgements](#acknowledgements)
 
 
 ## SMH 2 Blender
 
 This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SMH) and Blender; it can generate an SMH 4.0 animation file from a Blender action and vice versa, given that we tell Blender how GMod defines the collision model and bone hierarchy of its entities.
+
+### Requirements
+- Blender 2.8 and up
+- Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
 
 ### Features
 - Animation translations between SMH and Blender. This allows the animator to work with Blender and its (extensible) animation libraries, which the user can import their animations from Blender into Garry's Mod. Conversely, the user can also animate in Stop Motion Helper and bring their work over to Blender for polishing or other work.
@@ -33,6 +41,9 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 3. Because this addon strictly works with a Blender armature, using the collision model and bone mappings to inform the translation, an SMH animation translated into Blender will distort the Blender armature, and a Blender animation translated into SMH will distort the ragdoll (seen if the ragdoll has stretching applied through the Ragdoll Stretch tool). 
    - The distortion appears as a translation offset in the position of the physics objects on the ragdoll in GMod, or a translation offset in the position of the bones on the armature in Blender. Without ragdoll stretch, these effects are not noticeable on the GMod ragdoll at first. 
    - This happens because SMH uses the position of a ragdoll's physics object to save and load physical bone data, instead of the bone position corresponding to the physics object. There is a difference between the position of the physics object (which may be the geometric center of the physics object) and the position of the bone that the physics object corresponds to, and this results in a distortion in the armature and in the ragdoll. **It is recommended to not make modifications to the Blender armature if translating the animation back into SMH**; it is fine if the animation is intended as a new sequence for the model.
+
+### Issues
+If you have found a bug, or you have a suggestion to improve this tool, please report it in the [issue tracker](https://github.com/vlazed/smh2blender/issues). This is the best way for me to act on them.
 
 ## Tutorials
 
@@ -117,3 +128,10 @@ Notice that the name of the file is the name of the action.
 
 ### Stop Motion Helper to Blender
 (TODO)
+
+## Pull Requests
+Please format your files to conform to the pep8 guidelines, and ensure you have performed multiple test cases.
+
+## Acknowledgements
+
+- Spike from Peak Inc. for the idea
