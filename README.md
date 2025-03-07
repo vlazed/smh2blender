@@ -91,8 +91,7 @@ These maps allow the animator to proceed to the next steps of exchanging animati
 For animations to properly show undistorted on a model in Stop Motion Helper, the following prerequisites must be met:
 - The skeleton (and, in general, its model) in Blender and Stop Motion Helper **must be the same!** 
   - This means same bone orientation, same bone positions local to their parent bone, and (optionally) same bone scale. However, if the models are similar, Ragdoll Puppeteer, which can import Stop Motion Helper animations, can attempt to retarget the animation, given that the model exists in GMod.
-- All pose bones in the Blender armature must be in the XYZ Rotation Mode
-  - (TODO: make this optional).
+- All pose bones in the Blender armature must be in the **XYZ or QUATERNION** rotation modes. 
 
 To ensure that animations appear the way they should between Blender and SMH, the model must be decompiled with Crowbar and then loaded into Blender (how to find the model is beyond the scope of this tutorial), with the skeleton standing up along the z-axis. 
 

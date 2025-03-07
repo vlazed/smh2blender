@@ -32,16 +32,21 @@ def get_matrix_basis_from_fcurve(pbone: PoseBone, fcurves: ActionFCurves, frame:
     scale = Matrix.Diagonal(vecs[1])
 
     data_path = pbone.path_from_id('rotation_euler')
-    quat = Euler((0, 0, 0), ORDER)
-    temp_quat = Euler((0, 0, 0), ORDER)
-    for i in range(3):
+    ang, temp_ang = Euler((0, 0, 0), ORDER), Euler((0, 0, 0), ORDER)
+    num_components = 3
+    if pbone.rotation_mode == 'QUATERNION' or pbone.rotation_mode == 'AXIS_ANGLE':
+        data_path = pbone.path_from_id('rotation_quaternion')
+        ang, temp_ang = Quaternion(), Quaternion()
+        num_components = 4
+
+    for i in range(num_components):
         fc = fcurves.find(data_path, index=i)
         if fc is None:
             break
-        temp_quat[i] = fc.evaluate(frame)
+        temp_ang[i] = fc.evaluate(frame)
     else:
-        quat = temp_quat
-    rot = quat.to_matrix().to_4x4()
+        ang = ang
+    rot = ang.to_matrix().to_4x4()
 
     return trans @ rot @ scale
 
