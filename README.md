@@ -113,7 +113,7 @@ Once the model is in Blender, the animator can follow their usual animation work
 
 In between now and when the animation is complete, one can attempt to export their animation and load it, either with Stop Motion Helper or Ragdoll Puppeteer, through the following UI.
 
-![blender-to-smh-import](/media//blender-to-smh-import.png)
+![blender-to-smh-export](/media//blender-to-smh-export.png)
 
 The save path can be set to any location, but the preferred location is in a subdirectory of `garrysmod/data/smh`.
 
