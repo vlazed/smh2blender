@@ -134,9 +134,15 @@ class PhysBoneTree:
             self.bones.append(physbone)
             self.bone_dict[phys_name] = len(self.bones) - 1
 
+    def get_bone_from_index(self, index) -> PoseBone:
+        return self.bones[index].bone
+
     def get_parent(self, phys_name: str) -> PoseBone | None:
         if self.bone_dict.get(phys_name) and self.bones[self.bone_dict[phys_name]]:
             return self.bones[self.bone_dict[phys_name]].parent
+
+    def get_parent_index(self, phys_name: str) -> int | None:
+        return self.bone_dict.get(phys_name, None)
 
     def __str__(self):
         tree = ""
@@ -154,14 +160,14 @@ class Frame:
     bone: PoseBone
 
     @staticmethod
-    def vec_to_str(vec: Vector):
-        return f"[{vec.x} {vec.y} {vec.z}]"
+    def vec_to_str(vec: Vector, sign=(1, 1, 1)):
+        return f"[{sign[0] * vec.x} {sign[1] * vec.y} {sign[2] * vec.z}]"
 
     @staticmethod
     def ang_to_str(ang: Euler):
         """
             FIXME: This implicitly switches the angle order, which I think is a workaround to getting the correct angles (although the order is right-handed here)
-            Is there a "legit" method? This seems prone to errors.
+            Is there a "legit" method? This seems prone to errors if I reimported an SMH export.
         """
         return f"{{{degrees(ang.y)} {degrees(ang.z)} {degrees(ang.x)}}}"
 
@@ -226,7 +232,7 @@ class PhysBoneFrame(Frame):
     def to_json(self):
         data = {
             "Moveable": False,
-            "Pos": self.vec_to_str(self.pos),
+            "Pos": self.vec_to_str(self.pos, sign=(1, -1, 1)),
             "Ang": self.ang_to_str(self.ang),
         }
         if self.local_pos:

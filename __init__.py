@@ -17,14 +17,14 @@ from bpy.props import *
 from .smh.data import SMHProperties, SMHMetaData, SMHFile
 
 bl_info = {
-    "name": "Smh2blender",
+    "name": "SMH Importer/Exporter",
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 0, 1),
+    "version": (0, 1, 0),
     "location": "",
     "warning": "",
-    "category": "Generic",
+    "category": "Animation",
 }
 
 # https://blender.stackexchange.com/questions/109711/how-to-popup-simple-message-box-from-python-console
@@ -38,10 +38,40 @@ def show_message(message="", title="Message Box", icon='INFO'):
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
+def check_metadata_for_maps(metadata: SMHMetaData):
+    passed = True
+    msg = None
+    if not metadata.physics_obj_path:
+        passed = False
+        msg = (
+            "Empty physics map. Please supply a physics map and try again", "Error", 'ERROR')
+
+    if not metadata.bone_path:
+        passed = False
+        msg = ("Empty bone map. Please supply a bone map and try again",
+               "Error", 'ERROR')
+
+    return passed, msg
+
+
+def check_smh_file(path):
+    passed = True
+    msg = None
+    if not path:
+        passed = False
+
+    if passed and not path.endswith(".txt"):
+        passed = False
+        msg = (
+            "SMH animation files must end with \".txt\".", "Error", 'ERROR')
+
+    return passed, msg
+
+
 class ConvertBlenderToSMH(bpy.types.Operator):
     """Translate Blender to SMH"""
     bl_idname = "smh.blender2smh"
-    bl_label = "To SMH"
+    bl_label = "Export SMH File"
     bl_description = "Translate Blender keyframes into a text file that SMH can read, from the selected armature"
 
     @classmethod
@@ -62,14 +92,9 @@ class ConvertBlenderToSMH(bpy.types.Operator):
                 "No animation found. Make sure that an armature has an `Animation`", "Error", 'ERROR')
             return {'CANCELLED'}
 
-        if not metadata.physics_obj_path:
-            show_message(
-                "Empty physics map. Please supply a physics map and try again", "Error", 'ERROR')
-            return {'CANCELLED'}
-
-        if not metadata.bone_path:
-            show_message(
-                "Empty bone map. Please supply a bone map and try again", "Error", 'ERROR')
+        result = check_metadata_for_maps(metadata=metadata)
+        if not result:
+            show_message(*result[2])
             return {'CANCELLED'}
 
         if not properties.name:
@@ -107,8 +132,9 @@ class ConvertBlenderToSMH(bpy.types.Operator):
 class ConvertSMHToBlender(bpy.types.Operator):
     """Translate SMH to Blender"""
     bl_idname = "smh.smh2blender"
-    bl_label = "To Blender"
+    bl_label = "Import SMH File"
     bl_description = "Read an SMH text file and load its animation onto the selected armature"
+    bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(self, context: bpy.types.Context):
@@ -116,18 +142,58 @@ class ConvertSMHToBlender(bpy.types.Operator):
         return context.active_object and context.active_object.type == 'ARMATURE'
 
     def execute(self, context):
+        scene = context.scene
+        metadata: SMHMetaData = scene.smh_metadata
+        properties: SMHProperties = scene.smh_properties
+
+        # We polled for an armature, so our active object should be one
+        armature: bpy.types.Armature | bpy.types.Object = context.active_object
+
+        passed, msg = check_smh_file(metadata.loadpath)
+        if not passed:
+            show_message(
+                *msg or ("No animation file supplied. Please supply one and try again", "Error", 'ERROR'))
+            return {'CANCELLED'}
+
+        passed, msg = check_smh_file(metadata.ref_path)
+        if not passed:
+            show_message(
+                *msg or ("No reference file supplied. Please supply one and try again", "Error", 'ERROR'))
+            return {'CANCELLED'}
+
+        if not properties.model:
+            show_message("Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`", "Error", 'ERROR')
+            return {'CANCELLED'}
+
+        result = check_metadata_for_maps(metadata=metadata)
+        if not result:
+            show_message(*result[2])
+            return {'CANCELLED'}
+
+        abspath = bpy.path.abspath(metadata.loadpath)
+        with open(abspath) as f:
+            file = SMHFile()
+            result, msg = file.deserialize(
+                f, metadata=metadata,
+                filepath=abspath, armature=armature
+            )
+
+            show_message(
+                msg, "Success" if result else "Error",
+                'INFO' if result else 'ERROR')
+
         return {'FINISHED'}
 
 
 class View3DPanel:
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "Tool"
+    bl_category = "Animation"
 
 
 class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_smh_blender"
-    bl_label = "Blender SMH"
+    bl_label = "SMH Importer/Exporter"
 
     def draw(self, context):
         layout = self.layout
@@ -140,18 +206,29 @@ class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
         box.label(text="Configuration", icon='TEXT')
         box.prop(metadata, "bone_path")
         box.prop(metadata, "physics_obj_path")
-        box.prop(metadata, "savepath")
+        box.prop(metadata, "ref_path")
+        box.prop(metadata, "ref_name")
 
         box = layout.box()
-        box.label(text="Save Settings", icon='TOOL_SETTINGS')
+        box.label(text="Export Settings", icon='TOOL_SETTINGS')
         box.prop(properties, "map")
         box.prop(properties, "model")
         box.prop(properties, "name")
         box.prop(properties, "cls")
+        box.prop(metadata, "savepath")
+
+        box = layout.box()
+        box.label(text="Import Settings", icon='TOOL_SETTINGS')
+        box.prop(metadata, "name")
+        box.prop(metadata, "loadpath")
+        box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+        box.prop(metadata, "ang_x")
+        box.prop(metadata, "ang_y")
+        box.prop(metadata, "ang_z")
 
         row = layout.row()
-        blender2smh = row.operator('smh.blender2smh')
         smh2blender = row.operator('smh.smh2blender')
+        blender2smh = row.operator('smh.blender2smh')
 
 
 classes = (
