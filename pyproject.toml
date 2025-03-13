@@ -1,0 +1,24 @@
+[tool.pyright]
+
+# I'm pretty sure Blender Python devs break these diagnostics most of the time
+# though if it works, it works
+reportInvalidTypeForm="none"
+reportIncompatibleMethodOverride="none"
+reportAttributeAccessIssue="none"
+reportAssignmentType="none"
+reportArgumentType="none"
+reportReturnType="none"
+
+[tool.autopep8]
+max_line_length = 120
+ignore = [
+    "E721",
+    "E722",
+    "E402",
+    "W690",
+]
+aggressive = 2
+
+[tool.black]
+skip-string-normalization = true
+line-length = 120

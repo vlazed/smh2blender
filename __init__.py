@@ -12,9 +12,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from bpy.props import *
+from bpy.props import PointerProperty
 
-from .smh.data import SMHProperties, SMHMetaData, SMHFile
+from .smh.props import SMHProperties, SMHMetaData
+from .smh.data import SMHFile
 
 bl_info = {
     "name": "SMH Importer/Exporter",
@@ -75,7 +76,7 @@ class ConvertBlenderToSMH(bpy.types.Operator):
     bl_description = "Translate Blender keyframes into a text file that SMH can read, from the selected armature"
 
     @classmethod
-    def poll(self, context: bpy.types.Context):
+    def poll(cls, context: bpy.types.Context):
         # disable the operator if no Armature object is selected
         return context.active_object and context.active_object.type == 'ARMATURE'
 
@@ -137,7 +138,7 @@ class ConvertSMHToBlender(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
-    def poll(self, context: bpy.types.Context):
+    def poll(cls, context: bpy.types.Context):
         # disable the operator if no Armature object is selected
         return context.active_object and context.active_object.type == 'ARMATURE'
 

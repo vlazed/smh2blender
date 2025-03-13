@@ -4,8 +4,9 @@ from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
 
+from .types import BoneDict, PhysBoneDict, BoneMap
+
 ORDER = 'XYZ'
-BoneMap = List[str]
 
 
 def get_matrix_basis_from_fcurve(pbone: PoseBone, fcurves: ActionFCurves, frame: int) -> Matrix:
@@ -62,9 +63,12 @@ def get_pose_matrices(obj: Object, matrix_map: dict[str, Matrix], frame: int):
         frame (int)
     """
 
+    if not obj.animation_data.action:
+        return
+
     fcurves = obj.animation_data.action.fcurves
 
-    def rec(pbone: PoseBone | Bone):
+    def rec(pbone: PoseBone):
 
         matrix_basis = get_matrix_basis_from_fcurve(pbone, fcurves, frame)
 
@@ -116,7 +120,7 @@ class PhysBoneTree:
             return self.name
 
     bones: List[PhysBone]
-    bone_dict: dict[int]
+    bone_dict: dict[str, int]
 
     def __init__(self, armature: Armature | Object, phys_map: BoneMap):
         self.armature = armature
@@ -202,7 +206,7 @@ class BoneFrame(Frame):
         rest_matrix.to_3x3().rotate(matrix_basis.to_euler(ORDER))
         self.ang = matrix_basis.to_euler(ORDER)
 
-    def to_json(self):
+    def to_json(self) -> BoneDict:
         return {
             "Pos": self.vec_to_str(self.pos),
             "Ang": self.ang_to_str(self.ang),
@@ -228,13 +232,13 @@ class PhysBoneFrame(Frame):
 
             self.local_ang = local_matrix.to_euler(ORDER)
 
-    def to_json(self):
-        data = {
+    def to_json(self) -> PhysBoneDict:
+        data: PhysBoneDict = {
             "Moveable": False,
             "Pos": self.vec_to_str(self.pos, sign=(1, 1, 1)),
             "Ang": self.ang_to_str(self.ang),
         }
-        if self.local_pos:
+        if self.local_pos and self.local_ang:
             data["LocalPos"] = self.vec_to_str(self.local_pos)
             data["LocalAng"] = self.ang_to_str(self.local_ang)
 
@@ -250,21 +254,21 @@ class Frames:
         self.frame_range = frame_range
 
     @abstractmethod
-    def to_json(self): pass
+    def to_json(self, map: BoneMap): pass
 
 
 class PhysBoneFrames(Frames):
-    def to_json(self, physics_obj_map: BoneMap):
-        data = {}
+    def to_json(self, map: BoneMap):
+        data: dict[str, PhysBoneDict] = {}
 
-        physics_obj_tree = PhysBoneTree(self.armature, physics_obj_map)
+        physics_obj_tree = PhysBoneTree(self.armature, map)
         for i in range(self.frame_range[0], self.frame_range[1]):
             # Matrices with respect to world space
             matrix_map: dict[str, Matrix] = {}
             get_pose_matrices(self.armature, matrix_map, i)
             data[str(i)] = {}
 
-            for phys_id, bone_name in enumerate(physics_obj_map):
+            for phys_id, bone_name in enumerate(map):
                 bone = self.armature.pose.bones.get(bone_name)
                 if bone:
                     frame = PhysBoneFrame(bone=bone)
@@ -278,18 +282,25 @@ class PhysBoneFrames(Frames):
 
 
 class BoneFrames(Frames):
-    def to_json(self, bone_map: BoneMap):
-        data = {}
+    def to_json(self, map: BoneMap):
+        data: dict[str, BoneDict] = {}
+        if not self.armature.animation_data.action:
+            return data
+
+        fcurves = self.armature.animation_data.action.fcurves
+        if not fcurves:
+            return data
+
         for i in range(self.frame_range[0], self.frame_range[1]):
             data[str(i)] = {}
 
             # Matrices with respect to rest pose
-            for boneIndex, boneName in enumerate(bone_map):
+            for boneIndex, boneName in enumerate(map):
                 bone = self.armature.pose.bones.get(boneName)
-                frame = BoneFrame(bone=bone)
                 if bone:
+                    frame = BoneFrame(bone=bone)
                     frame.calculate(
-                        fcurves=self.armature.animation_data.action.fcurves, frame=i)
-                data[str(i)][str(boneIndex)] = frame.to_json()
+                        fcurves=fcurves, frame=i)
+                    data[str(i)][str(boneIndex)] = frame.to_json()
 
         return data

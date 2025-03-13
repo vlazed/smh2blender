@@ -1,180 +1,22 @@
 import bpy
-from bpy.props import *
 
 import json
 import os
-from math import radians
-from typing import TypedDict, Union
 from mathutils import Vector, Euler, Matrix
 from math import floor
 
 from .frame import PhysBoneFrames, BoneFrames, PhysBoneTree
-
-ArmatureObject = Union[bpy.types.Armature, bpy.types.Object]
-
-
-class GenericBoneField:
-    class Data(TypedDict):
-        Pos: str
-        Ang: str
-
-    pos: Vector
-    ang: Euler
-    armature: ArmatureObject
-
-    @staticmethod
-    def get_matrix(pos: Vector, ang: Euler, scale: Vector = Vector((1, 1, 1, 1))):
-        # Convert to pose space
-        return Matrix.Translation(pos) @ (ang.to_matrix().to_4x4()) @ Matrix.Diagonal(scale)
-
-    def __init__(self, armature: ArmatureObject, data: Data, angle_offset: Euler = Euler()):
-        self.pos = self.transform_vec(data["Pos"], sign=(1, 1, -1))
-        self.ang = self.transform_ang(data["Ang"], angle_offset=angle_offset)
-        self.armature = armature
-        self.matrix = self.get_matrix(self.pos, self.ang)
-
-    def add_pos(self, offset: Vector):
-        self.pos += offset
-        self.matrix = self.get_matrix(self.pos, self.ang)
-
-    def transform_vec(self, vec: str, sign=(1, 1, 1)) -> Vector:
-        """Transform an SMH vector into a Blender `Vector` in local space
-
-        Also switches y and z axes, as a bone's up axis is y.
-
-        Args:
-            vec (str): SMH vector
-
-        Returns:
-            Vector: Blender vector in local space
-        """
-        vec_list = [float(x) for x in vec[1:-1].split(" ")]
-        return Vector((sign[0] * vec_list[0], sign[1] * vec_list[2], sign[2] * vec_list[1]))
-
-    def transform_ang(self, ang: str, angle_offset: Euler = Euler()) -> Euler:
-        """Transform an SMH angle into a Blender angle in local space.
-
-        Args:
-            ang (str): SMH Angle
-
-        Returns:
-            Euler: Blender angle in local space
-        """
-
-        # Gotcha: Blender uses radians to represent its Euler angles. Convert to this
-        # Switch YZX (120) -> XYZ (012)
-        ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
-        return Euler((ang_list[2] + angle_offset.x, ang_list[0] + angle_offset.y, ang_list[1] + angle_offset.z))
-
-
-class PhysBoneField(GenericBoneField):
-    class Data(GenericBoneField.Data):
-        LocalPos: str | None
-        LocalAng: str | None
-
-    local_pos: Vector | None
-    local_ang: Euler | None
-    local_matrix: Matrix | None
-
-    def __init__(self, armature: bpy.types.Armature, data: Data, angle_offset: Euler):
-        super().__init__(armature=armature, data=data, angle_offset=angle_offset)
-        self.local_pos = self.local_ang = self.local_matrix = None
-        if data.get("LocalPos"):
-            self.local_pos = self.transform_local_vec(
-                data["LocalPos"], sign=(1, 1, 1))
-            self.local_ang = self.transform_local_ang(data["LocalAng"])
-            self.local_matrix = self.get_matrix(self.local_pos, self.local_ang)
-
-    def transform_local_ang(self, ang: str) -> Euler:
-        """Transform an SMH local angle into a Blender angle in local space
-
-        Args:
-            ang (str): SMH local angle, with respect to its physics bone parent
-
-        Returns:
-            Euler: Blender angle in local space
-        """
-        # Gotcha: Blender uses radians to represent its Euler angles. Convert to this
-        # Switch YZX (120) -> XYZ (012)
-        ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
-        return Euler((ang_list[2], ang_list[0], ang_list[1]))
-
-    def transform_local_vec(self, vec: str, sign=(1, 1, 1)) -> Euler:
-        """Transform an SMH local pos into a Blender angle in local space
-
-        Args:
-            vec (str): SMH local pos, with respect to its physics bone parent
-
-        Returns:
-            Vector: Blender vector in local space
-        """
-
-        # Switch back the y and z axes for the local vectors
-        new_vec = self.transform_vec(vec, sign)
-        return Vector((new_vec[0], new_vec[2], new_vec[1]))
-
-    def set_ref_offset(self, refphysbone, is_root: bool):
-        """Use the reference mapped physics bone to correct the local angle
-
-        Args:
-            refphysbone (PhysBoneField): Reference physics bone
-        """
-
-        if is_root:
-            self.ang = (refphysbone.ang.to_matrix().transposed()
-                        @ self.ang.to_matrix()).to_euler()
-            self.matrix = self.get_matrix(self.pos, self.ang)
-
-        if self.local_pos:
-            self.local_pos = (
-                refphysbone.local_matrix.inverted()
-                @ self.local_matrix).translation
-            self.local_ang = (refphysbone.local_ang.to_matrix(
-            ).transposed() @ self.local_ang.to_matrix()).to_euler()
-            self.local_matrix = self.get_matrix(self.local_pos, self.local_ang)
-
-
-class BoneField(GenericBoneField):
-    class Data(GenericBoneField.Data):
-        Scale: str | None
-
-    scale: Vector
-
-    def transform_manip_ang(self, ang: str) -> Euler:
-        """Transform a bone manipulation space SMH angle to a Blender angle in local space
-
-        Args:
-            ang (str): SMH angle in bone manipulation space
-
-        Returns:
-            Euler: Blender angle in local space
-        """
-        # Gotcha: Blender uses radians to represent its Euler angles. Convert to this
-        # Switch YZX (120) -> XYZ (012)
-        ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
-        return Euler((ang_list[2], ang_list[0], ang_list[1]))
-
-    def __init__(self, armature: bpy.types.Armature, data: Data):
-        super().__init__(armature=armature, data=data)
-        self.ang = self.transform_manip_ang(data["Ang"])
-        self.scale = self.transform_vec(data["Scale"]).to_4d()
-        self.scale[3] = 1
-        self.matrix = self.get_matrix(self.pos, self.ang, self.scale)
+from .types import SMHEntityDict, SMHFileDict, SMHEntityFrameDict, ArmatureObject
+from .bone import PhysBoneField, BoneField
+from .props import SMHMetaData, SMHProperties
 
 
 class SMHEntityData():
-    class SMHEntityDataDict(TypedDict):
-        bones: dict[str, str]
-        physbones: dict[str, str]
-        EaseOut: dict[str, float]
-        EaseIn: dict[str, float]
-        Position: int
-
-    data: SMHEntityDataDict
-    armature: bpy.types.Armature | bpy.types.Object
+    data: SMHEntityFrameDict
+    armature: ArmatureObject
     position: int
 
-    def __init__(self, position: int, armature: bpy.types.Armature):
+    def __init__(self, position: int, armature: ArmatureObject):
         self.data = {
             "EntityData": {
                 "bones": {},
@@ -200,134 +42,11 @@ class SMHEntityData():
     def bake_bones(self, bones):
         self.data["EntityData"]["bones"] = bones
 
-    def to_json(self, physbones, bones) -> SMHEntityDataDict:
+    def to_json(self, physbones, bones) -> SMHEntityFrameDict:
         self.bake_physbones(physbones)
         self.bake_bones(bones)
 
         return self.data
-
-
-class SMHProperties(bpy.types.PropertyGroup):
-    def set_model(self, value: str):
-        if len(value.strip()) == 0:
-            return
-
-        self["model"] = value
-
-    def get_model(self):
-        return self.get("model", "models/kleiner.mdl")
-
-    model: StringProperty(
-        name="Model path",
-        description="The location of the model with respect to the game's root folder)",
-        set=set_model,
-        get=get_model
-    )
-
-    def set_name(self, value: str):
-        if len(value.strip()) == 0:
-            value = os.path.basename(self.model)
-
-        if len(value) == 0:
-            return
-
-        self["name"] = value
-
-    def get_name(self):
-        return self.get("name", "kleiner")
-
-    name: StringProperty(
-        name="Name",
-        description="A unique identifier of the model, which Stop Motion Helper displays to the user (rather than e.g. kleiner.mdl)",
-        set=set_name,
-        get=get_name,
-    )
-    cls: EnumProperty(
-        name="Class",
-        default='prop_ragdoll',
-        description="The entity's class name, reflecting what they are in Source Engine",
-        items=[
-            ('prop_ragdoll', "Ragdoll", ""),
-            ('prop_physics', "Prop", ""),
-            ('prop_effect', "Effect", ""),
-        ])
-    map: StringProperty(
-        name="Map",
-        description="Where the animation will play. It informs the animator that an animation is made for a specific place",
-        default="gm_construct"
-    )
-
-    def to_json(self) -> str:
-        data = {
-            "Model": self.model,
-            "Name": self.name,
-            "Class": self.cls
-        }
-
-        return data
-
-
-class SMHMetaData(bpy.types.PropertyGroup):
-    physics_obj_path: StringProperty(
-        name="Physics map",
-        description="A list of bone names, ordered implicitly by Source Engine. It indicates bones as physical bones, which the Source Engine uses for collision models. Stop Motion Helper distinguishes between physical bones and regular (nonphysical) bones for animation",
-        default="",
-        subtype='FILE_PATH'
-    )
-    bone_path: StringProperty(
-        name="Bone map",
-        description="A list of bone names, ordered implicitly by Source Engine. It indicates the bones for a certain Source Engine model, which may differ from the Blender representation (due to $definebone or a different bone hierarchy)",
-        default="",
-        subtype='FILE_PATH'
-    )
-    ref_path: StringProperty(
-        name="Reference",
-        description="An SMH animation file of the model in reference pose. This is mainly used to pose the model from the physical bones.",
-        default="",
-        subtype='FILE_PATH'
-    )
-    savepath: StringProperty(
-        name="Save path",
-        description="Choose where to save animation file",
-        default="",
-        subtype='DIR_PATH'
-    )
-    loadpath: StringProperty(
-        name="Load path",
-        description="Load an SMH animation text file",
-        default="",
-        subtype='FILE_PATH'
-    )
-    name: StringProperty(
-        name="Name",
-        description="The name of the model to fetch from the SMH file. Ensure the model matches the selected armature, or else the action will not look correct",
-    )
-    ref_name: StringProperty(
-        name="Ref Name",
-        description="The name of the model to fetch from the reference file.",
-    )
-    ang_x: FloatProperty(
-        name="X",
-        min=-180,
-        max=180
-    )
-    ang_y: FloatProperty(
-        name="Y",
-        min=-180,
-        max=180
-    )
-    ang_z: FloatProperty(
-        name="Z",
-        min=-180,
-        max=180
-    )
-    import_stretch: BoolProperty(
-        name="Import stretching",
-        description="If checked, SMH animations that move the physics bones of the model will be reflected on the Blender armature."
-    )
-
-    def angle_offset(self):
-        return Euler((radians(self.ang_x), radians(self.ang_y), radians(self.ang_z)))
 
 
 def load_map(map_path: str):
@@ -339,13 +58,8 @@ def load_map(map_path: str):
 
 
 class SMHEntity():
-    class SMHEntityDict(TypedDict):
-        Frames: list[SMHEntityData]
-        Properties: str
-        Model: str
-
     data: SMHEntityDict
-    armature: bpy.types.Armature | bpy.types.Object
+    armature: ArmatureObject
     metadata: SMHMetaData
 
     @staticmethod
@@ -361,7 +75,7 @@ class SMHEntity():
         ]
 
     @staticmethod
-    def load_bones(entity, armature):
+    def load_bones(entity: SMHEntityDict, armature):
         return [
             [
                 BoneField(
@@ -373,13 +87,13 @@ class SMHEntity():
         ]
 
     @staticmethod
-    def load_entity(data, name: str):
+    def load_entity(data: SMHFileDict, name: str):
         return next((
             entity for entity in data.get("Entities")
             if entity.get("Properties") and entity["Properties"].get("Name", "") == name), None
         )
 
-    def __init__(self, armature: bpy.types.Armature | bpy.types.Object, properties: SMHProperties, metadata: SMHMetaData):
+    def __init__(self, armature: ArmatureObject, properties: SMHProperties, metadata: SMHMetaData):
         self.data = {
             "Frames": [],
             "Model": os.path.basename(properties.model),
@@ -396,6 +110,11 @@ class SMHEntity():
             SMHEntityDict: SMH animation data representing the Blender action
         """
 
+        action = self.armature.animation_data.action
+        if not action:
+            # Action should exist in the prior step. This is just here in case it doesn't (and to silence linting errors)
+            return self.data
+
         physics_obj_map = []
         with open(bpy.path.abspath(self.metadata.physics_obj_path)) as f:
             physics_obj_map = f.read().splitlines()
@@ -404,14 +123,14 @@ class SMHEntity():
         with open(bpy.path.abspath(self.metadata.bone_path)) as f:
             bone_map = f.read().splitlines()
 
-        frame_range = (floor(self.armature.animation_data.action.frame_start), floor(
-            self.armature.animation_data.action.frame_end + 1))
+        frame_range = (floor(action.frame_start), floor(
+            action.frame_end + 1))
 
         physbone_frames = PhysBoneFrames(
-            self.armature, frame_range).to_json(physics_obj_map=physics_obj_map)
+            self.armature, frame_range).to_json(map=physics_obj_map)
 
         bone_frames = BoneFrames(
-            self.armature, frame_range).to_json(bone_map=bone_map)
+            self.armature, frame_range).to_json(map=bone_map)
 
         for frame in range(frame_range[0], frame_range[1]):
             entityData = SMHEntityData(armature=self.armature, position=frame)
@@ -421,7 +140,7 @@ class SMHEntity():
         return self.data
 
     @classmethod
-    def bake_from_smh(cls, data, metadata: SMHMetaData, filename: str, armature: ArmatureObject):
+    def bake_from_smh(cls, data: SMHFileDict, metadata: SMHMetaData, filename: str, armature: ArmatureObject):
         """Load SMH animation data into Blender
 
         Args:
@@ -440,15 +159,15 @@ class SMHEntity():
 
         ref_physbone_data = None
         with open(bpy.path.abspath(metadata.ref_path)) as f:
-            ref_data = json.load(f)
-            ref_entity: SMHEntity.SMHEntityDict = cls.load_entity(
+            ref_data: SMHFileDict = json.load(f)
+            ref_entity = cls.load_entity(
                 ref_data, ref_name)
             if not ref_entity:
                 return False, f"Failed to load {filename}: reference entity name doesn't match {name}"
             ref_physbone_data = cls.load_physbones(
                 armature=armature, entity=ref_entity)
 
-        entity: SMHEntity.SMHEntityDict = cls.load_entity(data, name)
+        entity = cls.load_entity(data, name)
         if not entity:
             return False, f"Failed to load {filename}: entity name doesn't match {name}"
         physbone_data = cls.load_physbones(
@@ -538,7 +257,7 @@ class SMHEntity():
             if not bone:
                 continue
 
-            matrices = None
+            matrices: list[Matrix] = None
             if physics_tree.get_parent(phys_name):
                 matrices = [row[index].local_matrix for row in physbone_data]
             else:
@@ -571,11 +290,7 @@ class SMHEntity():
 
 
 class SMHFile():
-    class SMHFileData(TypedDict):
-        Map: str
-        Entities: list[SMHEntity]
-
-    data: SMHFileData
+    data: SMHFileDict
 
     def __init__(self, map: str = "none"):
         self.data = {
