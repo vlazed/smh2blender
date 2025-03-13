@@ -38,7 +38,7 @@ jobs:
           path: release
         
       - name: Rename archive
-        run: mv release/release.zip smh_importer_exporter_${{ github.ref_name }}
+        run: mv release/release.zip smh_importer_exporter_${{ github.ref_name }}.zip
       
       - name: Create release
         uses: softprops/action-gh-release@v2.2.1
