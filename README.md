@@ -9,8 +9,8 @@ Exchange animations between Garry's Mod Stop Motion Helper and Blender
   - [Remarks](#remarks)
   - [Issues](#issues)
 - [Tutorials](#tutorials)
-  - [Obtaining maps](#obtaining-maps)
   - [Configuration Walkthrough](#configuration-walkthrough)
+  - [Obtaining maps](#obtaining-maps)
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
 - [Pull Requests](#pull-requests)
@@ -49,6 +49,11 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
 ## Tutorials
 > [!IMPORTANT] 
 > For some of these tutorials, knowledge on decompiling models with Crowbar is required. Learn how to decompile models and import them into Blender before proceeding to the following tutorials.
+
+### Configuration Walkthrough
+![blender-to-smh-configuration](/media//blender-to-smh-configuration.png)
+
+**Bone map** and **Physics map** refer to the maps obtained in the [Obtaining maps](#obtaining-maps) tutorial. In addition to these is **Reference**, which is a SMH animation file of a model in reference pose. **Ref Name** refers to the name of the entity in the Reference file (usually, the model name). To obtain this, read the [Stop Motion Helper to Blender](#stop-motion-helper-to-blender) tutorial.
 
 ### Obtaining maps
 Maps are simple `.txt` files which define the order of bones or physics objects of a certain model. They look like this:
@@ -92,11 +97,6 @@ lua_run local entity = Entity(N) for i = 0, entity:GetBoneCount() - 1 do print(e
 This will print more bone names to the console than the previous step. Copy everything from the console, paste into a text file, remove excessive information, and save the text file next to the physics object map. This new text file is the bone map.
 
 These maps allow the animator to proceed to the next steps of exchanging animations between GMod and Blender.
-
-### Configuration Walkthrough
-![blender-to-smh-configuration](/media//blender-to-smh-configuration.png)
-
-**Bone map** and **Physics map** refer to the maps obtained in the [Obtaining maps](#obtaining-maps) tutorial. In addition to these is **Reference**, which is a SMH animation file of a model in reference pose. **Ref Name** refers to the name of the entity in the Reference file (usually, the model name). To obtain this, read the [Stop Motion Helper to Blender](#stop-motion-helper-to-blender) tutorial.
 
 ### Blender to Stop Motion Helper
 > [!NOTE] 
