@@ -221,6 +221,7 @@ class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
         box.prop(metadata, "name")
         box.prop(metadata, "loadpath")
+        box.prop(metadata, "import_stretch")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
         box.prop(metadata, "ang_x")
         box.prop(metadata, "ang_y")

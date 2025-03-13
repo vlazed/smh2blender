@@ -165,10 +165,9 @@ class Frame:
 
     @staticmethod
     def ang_to_str(ang: Euler):
-        """
-            FIXME: This implicitly switches the angle order, which I think is a workaround to getting the correct angles (although the order is right-handed here)
-            Is there a "legit" method? This seems prone to errors if I reimported an SMH export.
-        """
+        # We switch angles because
+        # "QAngle are Pitch (around y), Yaw (around Z), Roll (around X)"
+        # https://github.com/ValveSoftware/source-sdk-2013/blob/a62efecf624923d3bacc67b8ee4b7f8a9855abfd/src/public/vphysics_interface.h#L26
         return f"{{{degrees(ang.y)} {degrees(ang.z)} {degrees(ang.x)}}}"
 
     def __init__(self, bone: PoseBone):
@@ -232,7 +231,7 @@ class PhysBoneFrame(Frame):
     def to_json(self):
         data = {
             "Moveable": False,
-            "Pos": self.vec_to_str(self.pos, sign=(1, -1, 1)),
+            "Pos": self.vec_to_str(self.pos, sign=(1, 1, 1)),
             "Ang": self.ang_to_str(self.ang),
         }
         if self.local_pos:

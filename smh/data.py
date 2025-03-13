@@ -28,7 +28,7 @@ class GenericBoneField:
         return Matrix.Translation(pos) @ (ang.to_matrix().to_4x4()) @ Matrix.Diagonal(scale)
 
     def __init__(self, armature: ArmatureObject, data: Data, angle_offset: Euler = Euler()):
-        self.pos = self.transform_vec(data["Pos"])
+        self.pos = self.transform_vec(data["Pos"], sign=(1, 1, -1))
         self.ang = self.transform_ang(data["Ang"], angle_offset=angle_offset)
         self.armature = armature
         self.matrix = self.get_matrix(self.pos, self.ang)
@@ -37,7 +37,7 @@ class GenericBoneField:
         self.pos += offset
         self.matrix = self.get_matrix(self.pos, self.ang)
 
-    def transform_vec(self, vec: str) -> Vector:
+    def transform_vec(self, vec: str, sign=(1, 1, 1)) -> Vector:
         """Transform an SMH vector into a Blender `Vector` in local space
 
         Also switches y and z axes, as a bone's up axis is y.
@@ -49,14 +49,13 @@ class GenericBoneField:
             Vector: Blender vector in local space
         """
         vec_list = [float(x) for x in vec[1:-1].split(" ")]
-        return Vector((vec_list[0], vec_list[2], vec_list[1]))
+        return Vector((sign[0] * vec_list[0], sign[1] * vec_list[2], sign[2] * vec_list[1]))
 
     def transform_ang(self, ang: str, angle_offset: Euler = Euler()) -> Euler:
         """Transform an SMH angle into a Blender angle in local space.
 
         Args:
             ang (str): SMH Angle
-            angle_offset (Euler, optional): Angle offset. Defaults to (0, 0, 0).
 
         Returns:
             Euler: Blender angle in local space
@@ -65,7 +64,7 @@ class GenericBoneField:
         # Gotcha: Blender uses radians to represent its Euler angles. Convert to this
         # Switch YZX (120) -> XYZ (012)
         ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
-        return Euler((ang_list[2] + angle_offset.x, ang_list[1] + angle_offset.y, ang_list[0] + angle_offset.z))
+        return Euler((ang_list[2] + angle_offset.x, ang_list[0] + angle_offset.y, ang_list[1] + angle_offset.z))
 
 
 class PhysBoneField(GenericBoneField):
@@ -81,7 +80,8 @@ class PhysBoneField(GenericBoneField):
         super().__init__(armature=armature, data=data, angle_offset=angle_offset)
         self.local_pos = self.local_ang = self.local_matrix = None
         if data.get("LocalPos"):
-            self.local_pos = self.transform_vec(data["LocalPos"])
+            self.local_pos = self.transform_local_vec(
+                data["LocalPos"], sign=(1, 1, 1))
             self.local_ang = self.transform_local_ang(data["LocalAng"])
             self.local_matrix = self.get_matrix(self.local_pos, self.local_ang)
 
@@ -99,15 +99,36 @@ class PhysBoneField(GenericBoneField):
         ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
         return Euler((ang_list[2], ang_list[0], ang_list[1]))
 
-    def set_ref_offset(self, refphysbone):
+    def transform_local_vec(self, vec: str, sign=(1, 1, 1)) -> Euler:
+        """Transform an SMH local pos into a Blender angle in local space
+
+        Args:
+            vec (str): SMH local pos, with respect to its physics bone parent
+
+        Returns:
+            Vector: Blender vector in local space
+        """
+
+        # Switch back the y and z axes for the local vectors
+        new_vec = self.transform_vec(vec, sign)
+        return Vector((new_vec[0], new_vec[2], new_vec[1]))
+
+    def set_ref_offset(self, refphysbone, is_root: bool):
         """Use the reference mapped physics bone to correct the local angle
 
         Args:
             refphysbone (PhysBoneField): Reference physics bone
         """
 
+        if is_root:
+            self.ang = (refphysbone.ang.to_matrix().transposed()
+                        @ self.ang.to_matrix()).to_euler()
+            self.matrix = self.get_matrix(self.pos, self.ang)
+
         if self.local_pos:
-            self.local_pos = self.local_pos - refphysbone.local_pos
+            self.local_pos = (
+                refphysbone.local_matrix.inverted()
+                @ self.local_matrix).translation
             self.local_ang = (refphysbone.local_ang.to_matrix(
             ).transposed() @ self.local_ang.to_matrix()).to_euler()
             self.local_matrix = self.get_matrix(self.local_pos, self.local_ang)
@@ -300,6 +321,10 @@ class SMHMetaData(bpy.types.PropertyGroup):
         min=-180,
         max=180
     )
+    import_stretch: BoolProperty(
+        name="Import stretching",
+        description="If checked, SMH animations that move the physics bones of the model will be reflected on the Blender armature."
+    )
 
     def angle_offset(self):
         return Euler((radians(self.ang_x), radians(self.ang_y), radians(self.ang_z)))
@@ -311,10 +336,6 @@ def load_map(map_path: str):
         map = f.read().splitlines()
 
     return map
-
-
-def generate_fcurves(action: bpy.types.Action):
-    return action.fcurves.new("location", index=0)
 
 
 class SMHEntity():
@@ -415,12 +436,13 @@ class SMHEntity():
         """
 
         name: str = metadata.name
+        ref_name: str = metadata.ref_name
 
         ref_physbone_data = None
         with open(bpy.path.abspath(metadata.ref_path)) as f:
             ref_data = json.load(f)
             ref_entity: SMHEntity.SMHEntityDict = cls.load_entity(
-                ref_data, name)
+                ref_data, ref_name)
             if not ref_entity:
                 return False, f"Failed to load {filename}: reference entity name doesn't match {name}"
             ref_physbone_data = cls.load_physbones(
@@ -435,13 +457,14 @@ class SMHEntity():
         [
             [
                 physbone.set_ref_offset(
-                    refphysbone=ref_physbone_data[0][physbone_index])
+                    refphysbone=ref_physbone_data[0][physbone_index], is_root=physbone_index == 0)
                 for physbone_index, physbone in enumerate(physbone_row)
             ]
             for physbone_row in physbone_data
         ]
 
         action = bpy.data.actions.new(filename)
+        action.use_frame_range = True
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         physics_tree = PhysBoneTree(armature, physics_obj_map)
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
@@ -468,6 +491,8 @@ class SMHEntity():
         num_frames = len(frames)
         interpolation = [
             bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value] * num_frames
+        action.frame_start = min(frames)
+        action.frame_end = max(frames)
 
         def create_fc(index, samples, data_path, group_name):
             fc: bpy.types.FCurve = action.fcurves.new(
@@ -531,10 +556,11 @@ class SMHEntity():
                 (matrix.to_euler().z for i, matrix in enumerate(matrices))
             ]
 
-            data_path = bone.path_from_id('location')
-            [create_fc(
-                index=index, samples=samples, data_path=data_path,
-                group_name=phys_name) for index, samples in enumerate(pos)]
+            if metadata.import_stretch or physics_tree.get_parent(phys_name) is None:
+                data_path = bone.path_from_id('location')
+                [create_fc(
+                    index=index, samples=samples, data_path=data_path,
+                    group_name=phys_name) for index, samples in enumerate(pos)]
 
             data_path = bone.path_from_id('rotation_euler')
             [create_fc(
