@@ -22,7 +22,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 1, 1),
+    "version": (0, 1, 2),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -104,7 +104,10 @@ class ConvertBlenderToSMH(bpy.types.Operator):
             return {'CANCELLED'}
 
         if not properties.model:
-            show_message("Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`", "Error", 'ERROR')
+            show_message(
+                "Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`",
+                "Error",
+                'ERROR')
             return {'CANCELLED'}
 
         if not metadata.savepath:
@@ -163,7 +166,10 @@ class ConvertSMHToBlender(bpy.types.Operator):
             return {'CANCELLED'}
 
         if not properties.model:
-            show_message("Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`", "Error", 'ERROR')
+            show_message(
+                "Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`",
+                "Error",
+                'ERROR')
             return {'CANCELLED'}
 
         result = check_metadata_for_maps(metadata=metadata)

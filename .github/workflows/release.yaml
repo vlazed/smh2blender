@@ -1,0 +1,50 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Zip archive
+        run: zip -r release.zip . -x *.git* -x media/* -x media/ -x README.md
+      
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.zip
+        
+  release:
+    name: Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download archive
+        uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+        
+      - name: Rename archive
+        run: mv release/release.zip smh_importer_exporter_${{ github.ref_name }}
+      
+      - name: Create release
+        uses: softprops/action-gh-release@v2.2.1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SMH Importer/Exporter ${{ github.ref_name }}
+          files: |
+            smh_importer_exporter_${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
