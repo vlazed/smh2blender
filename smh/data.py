@@ -58,8 +58,12 @@ class SMHImporter:
         num_frames = len(frames)
         self.interpolation = [
             bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value] * num_frames
+
         action.frame_start = min(frames)
         action.frame_end = max(frames)
+
+        bpy.context.scene.frame_start = int(action.frame_start)
+        bpy.context.scene.frame_end = int(action.frame_end)
 
     @staticmethod
     def get_pose(
@@ -281,8 +285,14 @@ class SMHEntity():
         self.armature = armature
         self.metadata = metadata
 
-    def bake_to_smh(self, frame_step: int = 1, check_keyframe: bool = False):
+    def bake_to_smh(self, frame_step: int = 1, check_keyframe: bool = False,
+                    use_scene_range: bool = False) -> SMHEntityDict:
         """Read physics map and bone map, and write SMH animation data from the Blender
+
+        Args:
+            frame_step (int, optional): Resolution of exported action. Defaults to 1.
+            check_keyframe (bool, optional): Whether to only export keyframes of the action. Defaults to False.
+            use_scene_range (bool, optional): Whether to use the dope sheet frame range or the action's own frame range. Defaults to False.
 
         Returns:
             SMHEntityDict: SMH animation data representing the Blender action
@@ -302,8 +312,12 @@ class SMHEntity():
         with open(bpy.path.abspath(self.metadata.bone_path)) as f:
             bone_map = f.read().splitlines()
 
-        frame_range = (floor(action.frame_start), floor(
-            action.frame_end + 1), frame_step)
+        scene = bpy.context.scene
+        frame_range = (
+            floor(scene.frame_start if use_scene_range else action.frame_start),
+            floor(scene.frame_end + 1 if use_scene_range else action.frame_end + 1),
+            frame_step
+        )
 
         physbone_frames = PhysBoneFrames(
             self.armature, frame_range).to_json(map=physics_obj_map)
@@ -383,15 +397,22 @@ class SMHEntity():
 class SMHFile():
     data: SMHFileDict
     check_keyframes: bool
+    use_scene_range: bool
     frame_step: int
 
-    def __init__(self, map: str = "none", check_keyframes: bool = False, frame_step: int = 1):
+    def __init__(
+            self,
+            map: str = "none",
+            check_keyframes: bool = False,
+            frame_step: int = 1,
+            use_scene_range: bool = False):
         self.data = {
             "Map": map,
             "Entities": []
         }
         self.check_keyframes = check_keyframes
         self.frame_step = 1 if check_keyframes else frame_step
+        self.use_scene_range = use_scene_range
 
     def serialize(self, armature: bpy.types.Armature, metadata: SMHMetaData, properties: SMHProperties) -> str:
         # TODO: Support multiple armatures as other entities
@@ -405,7 +426,8 @@ class SMHFile():
         self.data["Entities"].append(
             entity.bake_to_smh(
                 frame_step=self.frame_step,
-                check_keyframe=self.check_keyframes
+                check_keyframe=self.check_keyframes,
+                use_scene_range=self.use_scene_range
             )
         )
 

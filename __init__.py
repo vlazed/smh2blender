@@ -22,7 +22,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 1, 2),
+    "version": (0, 2, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -74,6 +74,12 @@ class ConvertBlenderToSMH(bpy.types.Operator):
     bl_label = "Export SMH File"
     bl_description = "Translate Blender keyframes into a text file that SMH can read, from the selected armature"
 
+    use_scene_range: BoolProperty(
+        name="Use scene frame range?",
+        description="Whether the addon will export the action using the frame range defined on the dope sheet or from the action's Manual Frame Range.",
+        default=True,
+    )
+
     keyframes_only: BoolProperty(
         name="Keyframes only?",
         description="Only evaluate the f-curve if a keyframe is defined at a certain frame. Disables Frame step if checked.",
@@ -94,6 +100,7 @@ class ConvertBlenderToSMH(bpy.types.Operator):
         layout = self.layout
 
         key = layout.row()
+        key.prop(self, "use_scene_range")
         key.prop(self, "keyframes_only")
         frame = layout.row()
         frame.enabled = not self.keyframes_only
@@ -150,7 +157,11 @@ class ConvertBlenderToSMH(bpy.types.Operator):
 
         fileName = armature.animation_data.action.name + ".txt"
 
-        smhFile = SMHFile(properties.map, check_keyframes=self.keyframes_only, frame_step=self.frame_step)
+        smhFile = SMHFile(
+            properties.map,
+            check_keyframes=self.keyframes_only,
+            frame_step=self.frame_step,
+            use_scene_range=self.use_scene_range)
         contents = smhFile.serialize(armature, metadata, properties)
         try:
 
