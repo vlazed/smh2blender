@@ -1,18 +1,16 @@
 import bpy
 
-from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
+from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, IntProperty
 from mathutils import Euler
 
 from math import radians
 from os.path import basename
 
-from .types import SMHPropertiesDict
-
 
 def SMHVersion():
     return EnumProperty(name="Save version",
                         description="Which version of SMH to use",
-                        items=[('3', "3.0", ""), ('4', "4.0", "")],
+                        items=[('2', "2.0", ""), ('3', "3.0", ""), ('4', "4.0", "")],
                         default='4'
                         )
 
@@ -66,14 +64,33 @@ class SMHProperties(bpy.types.PropertyGroup):
         description="Where the animation will play. It informs the animator that an animation is made for a specific place",
         default="gm_construct")
 
-    def to_json(self) -> SMHPropertiesDict:
-        data = {
-            "Model": self.model,
-            "Name": self.name,
-            "Class": self.cls
-        }
 
-        return data
+class SMHExportProperties(bpy.types.PropertyGroup):
+    use_scene_range: BoolProperty(
+        name="Use scene frame range?",
+        description="Whether the addon will export the action using the frame range defined on the dope sheet or from the action's Manual Frame Range.",
+        default=True,
+    )
+
+    keyframes_only: BoolProperty(
+        name="Keyframes only?",
+        description="Only evaluate the f-curve if a keyframe is defined at a certain frame. Disables Frame step if checked.",
+        default=False,
+    )
+
+    frame_step: IntProperty(
+        name="Frame step",
+        description="Resolution of the animation when exported to SMH. Higher frame steps result in a less accurate portrayal in SMH, but it is more flexible to modify. Lower frame steps is more accurate, but it is less flexible to modify",
+        min=1,
+        soft_max=10,
+        default=1,
+    )
+
+    smh_version: SMHVersion()
+
+
+class SMHImportProperties(bpy.types.PropertyGroup):
+    smh_version: SMHVersion()
 
 
 class SMHMetaData(bpy.types.PropertyGroup):

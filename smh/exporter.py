@@ -4,7 +4,8 @@ from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
 
-from .types import BoneDict, PhysBoneDict, BoneMap
+from .types.frame import BoneData, PhysBoneData
+from .types.shared import BoneMap
 
 ORDER = 'XYZ'
 
@@ -206,7 +207,7 @@ class BoneFrame(Frame):
         rest_matrix.to_3x3().rotate(matrix_basis.to_euler(ORDER))
         self.ang = matrix_basis.to_euler(ORDER)
 
-    def to_json(self) -> BoneDict:
+    def to_json(self) -> BoneData:
         return {
             "Pos": self.vec_to_str(self.pos),
             "Ang": self.ang_to_str(self.ang),
@@ -232,8 +233,8 @@ class PhysBoneFrame(Frame):
 
             self.local_ang = local_matrix.to_euler(ORDER)
 
-    def to_json(self) -> PhysBoneDict:
-        data: PhysBoneDict = {
+    def to_json(self) -> PhysBoneData:
+        data: PhysBoneData = {
             "Moveable": False,
             "Pos": self.vec_to_str(self.pos, sign=(1, 1, 1)),
             "Ang": self.ang_to_str(self.ang),
@@ -259,7 +260,7 @@ class Frames:
 
 class PhysBoneFrames(Frames):
     def to_json(self, map: BoneMap):
-        data: dict[str, PhysBoneDict] = {}
+        data: dict[str, PhysBoneData] = {}
 
         physics_obj_tree = PhysBoneTree(self.armature, map)
         for i in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
@@ -283,7 +284,7 @@ class PhysBoneFrames(Frames):
 
 class BoneFrames(Frames):
     def to_json(self, map: BoneMap):
-        data: dict[str, BoneDict] = {}
+        data: dict[str, BoneData] = {}
         if not self.armature.animation_data.action:
             return data
 

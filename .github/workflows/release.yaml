@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Zip archive
-        run: zip -r release.zip . -x *.git* -x media/* -x media/ -x README.md
+        run: zip -r release.zip . -x *.git* -x media/* -x media/ -x README.md -x docs/* -x docs/ -x pyproject.toml
       
       - name: Upload archive
         uses: actions/upload-artifact@v4

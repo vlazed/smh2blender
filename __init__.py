@@ -12,9 +12,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from bpy.props import PointerProperty, BoolProperty, IntProperty
+from bpy.props import PointerProperty
 
-from .smh.props import SMHProperties, SMHMetaData, SMHVersion
+from .smh.props import SMHProperties, SMHMetaData, SMHExportProperties, SMHImportProperties
 from .smh.data import SMHFile
 
 bl_info = {
@@ -22,7 +22,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -74,39 +74,18 @@ class ConvertBlenderToSMH(bpy.types.Operator):
     bl_label = "Export SMH File"
     bl_description = "Translate Blender keyframes into a text file that SMH can read, from the selected armature"
 
-    use_scene_range: BoolProperty(
-        name="Use scene frame range?",
-        description="Whether the addon will export the action using the frame range defined on the dope sheet or from the action's Manual Frame Range.",
-        default=True,
-    )
-
-    keyframes_only: BoolProperty(
-        name="Keyframes only?",
-        description="Only evaluate the f-curve if a keyframe is defined at a certain frame. Disables Frame step if checked.",
-        default=False,
-    )
-
-    frame_step: IntProperty(
-        name="Frame step",
-        description="Resolution of the animation when exported to SMH. Higher frame steps result in a less accurate portrayal in SMH, but it is more flexible to modify. Lower frame steps is more accurate, but it is less flexible to modify",
-        min=1,
-        soft_max=10,
-        default=1,
-    )
-
-    smh_version: SMHVersion()
-
     def draw(self, context):
+        export_props: SMHExportProperties = context.scene.smh_export_props
         layout = self.layout
 
         key = layout.row()
-        key.prop(self, "use_scene_range")
-        key.prop(self, "keyframes_only")
+        key.prop(export_props, "use_scene_range")
+        key.prop(export_props, "keyframes_only")
         frame = layout.row()
-        frame.enabled = not self.keyframes_only
-        frame.prop(self, "frame_step")
+        frame.enabled = not export_props.keyframes_only
+        frame.prop(export_props, "frame_step")
         row = layout.row()
-        row.prop(self, "smh_version")
+        row.prop(export_props, "smh_version")
 
         # # This won't show up in older versions of Blender. Nonetheless, this is certainly cosmetic
         # row.template_popup_confirm("smh.blender2smh", text="Export", cancel_text="Cancel", cancel_default=True)
@@ -124,6 +103,7 @@ class ConvertBlenderToSMH(bpy.types.Operator):
         scene = context.scene
         metadata: SMHMetaData = scene.smh_metadata
         properties: SMHProperties = scene.smh_properties
+        export_props: SMHExportProperties = scene.smh_export_props
 
         # We polled for an armature, so our active object should be one
         armature: bpy.types.Armature | bpy.types.Object = context.active_object
@@ -157,14 +137,8 @@ class ConvertBlenderToSMH(bpy.types.Operator):
 
         fileName = armature.animation_data.action.name + ".txt"
 
-        smhFile = SMHFile(
-            properties.map,
-            check_keyframes=self.keyframes_only,
-            frame_step=self.frame_step,
-            use_scene_range=self.use_scene_range)
-        contents = smhFile.serialize(armature, metadata, properties)
+        contents = SMHFile().serialize(armature=armature, metadata=metadata, properties=properties, export_props=export_props)
         try:
-
             with open(bpy.path.abspath(metadata.savepath + fileName), "w+") as f:
                 f.write(contents)
         except Exception as e:
@@ -184,6 +158,17 @@ class ConvertSMHToBlender(bpy.types.Operator):
     bl_description = "Read an SMH text file and load its animation onto the selected armature"
     bl_options = {'REGISTER', 'UNDO'}
 
+    def draw(self, context):
+        import_props: SMHImportProperties = context.scene.smh_import_props
+        layout = self.layout
+
+        row = layout.row()
+        row.prop(import_props, "smh_version")
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
+
     @classmethod
     def poll(cls, context: bpy.types.Context):
         # disable the operator if no Armature object is selected
@@ -193,6 +178,7 @@ class ConvertSMHToBlender(bpy.types.Operator):
         scene = context.scene
         metadata: SMHMetaData = scene.smh_metadata
         properties: SMHProperties = scene.smh_properties
+        import_props: SMHImportProperties = scene.smh_import_props
 
         # We polled for an armature, so our active object should be one
         armature: bpy.types.Armature | bpy.types.Object = context.active_object
@@ -223,15 +209,17 @@ class ConvertSMHToBlender(bpy.types.Operator):
 
         abspath = bpy.path.abspath(metadata.loadpath)
         with open(abspath) as f:
-            file = SMHFile()
-            result, msg = file.deserialize(
+            result, msg = SMHFile().deserialize(
                 f, metadata=metadata,
-                filepath=abspath, armature=armature
+                filepath=abspath, armature=armature, import_props=import_props
             )
 
             show_message(
                 msg, "Success" if result else "Error",
                 'INFO' if result else 'ERROR')
+
+            if not result:
+                return {'CANCELLED'}
 
         return {'FINISHED'}
 
@@ -287,6 +275,8 @@ classes = (
     ConvertBlenderToSMH,
     ConvertSMHToBlender,
     SMHProperties,
+    SMHExportProperties,
+    SMHImportProperties,
     SMHMetaData,
     BlenderSMHPanel
 )
@@ -298,6 +288,8 @@ def register():
 
     bpy.types.Scene.smh_metadata = PointerProperty(type=SMHMetaData)
     bpy.types.Scene.smh_properties = PointerProperty(type=SMHProperties)
+    bpy.types.Scene.smh_export_props = PointerProperty(type=SMHExportProperties)
+    bpy.types.Scene.smh_import_props = PointerProperty(type=SMHImportProperties)
 
 
 def unregister():
@@ -305,3 +297,5 @@ def unregister():
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.smh_metadata
     del bpy.types.Scene.smh_properties
+    del bpy.types.Scene.smh_export_props
+    del bpy.types.Scene.smh_import_props
