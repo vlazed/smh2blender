@@ -12,9 +12,9 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import bpy
-from bpy.props import PointerProperty
+from bpy.props import PointerProperty, BoolProperty, IntProperty
 
-from .smh.props import SMHProperties, SMHMetaData
+from .smh.props import SMHProperties, SMHMetaData, SMHVersion
 from .smh.data import SMHFile
 
 bl_info = {
@@ -28,10 +28,9 @@ bl_info = {
     "category": "Animation",
 }
 
-# https://blender.stackexchange.com/questions/109711/how-to-popup-simple-message-box-from-python-console
-
 
 def show_message(message="", title="Message Box", icon='INFO'):
+    # https://blender.stackexchange.com/questions/109711/how-to-popup-simple-message-box-from-python-console
 
     def draw(self: bpy.types.Panel, context: bpy.types.Context):
         self.layout.label(text=message)
@@ -75,10 +74,44 @@ class ConvertBlenderToSMH(bpy.types.Operator):
     bl_label = "Export SMH File"
     bl_description = "Translate Blender keyframes into a text file that SMH can read, from the selected armature"
 
+    keyframes_only: BoolProperty(
+        name="Keyframes only?",
+        description="Only evaluate the f-curve if a keyframe is defined at a certain frame. Disables Frame step if checked.",
+        default=False,
+    )
+
+    frame_step: IntProperty(
+        name="Frame step",
+        description="Resolution of the animation when exported to SMH. Higher frame steps result in a less accurate portrayal in SMH, but it is more flexible to modify. Lower frame steps is more accurate, but it is less flexible to modify",
+        min=1,
+        soft_max=10,
+        default=1,
+    )
+
+    smh_version: SMHVersion()
+
+    def draw(self, context):
+        layout = self.layout
+
+        key = layout.row()
+        key.prop(self, "keyframes_only")
+        frame = layout.row()
+        frame.enabled = not self.keyframes_only
+        frame.prop(self, "frame_step")
+        row = layout.row()
+        row.prop(self, "smh_version")
+
+        # # This won't show up in older versions of Blender. Nonetheless, this is certainly cosmetic
+        # row.template_popup_confirm("smh.blender2smh", text="Export", cancel_text="Cancel", cancel_default=True)
+
     @classmethod
     def poll(cls, context: bpy.types.Context):
         # disable the operator if no Armature object is selected
         return context.active_object and context.active_object.type == 'ARMATURE'
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self)
 
     def execute(self, context):
         scene = context.scene
@@ -117,7 +150,7 @@ class ConvertBlenderToSMH(bpy.types.Operator):
 
         fileName = armature.animation_data.action.name + ".txt"
 
-        smhFile = SMHFile(properties.map)
+        smhFile = SMHFile(properties.map, check_keyframes=self.keyframes_only, frame_step=self.frame_step)
         contents = smhFile.serialize(armature, metadata, properties)
         try:
 

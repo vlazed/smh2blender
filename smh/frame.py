@@ -247,7 +247,7 @@ class PhysBoneFrame(Frame):
 
 class Frames:
     armature: Armature | Object
-    frame_range: tuple[int, int]
+    frame_range: tuple[int, int, int]
 
     def __init__(self, armature: Armature | Object, frame_range: tuple[int, int]):
         self.armature = armature
@@ -262,7 +262,7 @@ class PhysBoneFrames(Frames):
         data: dict[str, PhysBoneDict] = {}
 
         physics_obj_tree = PhysBoneTree(self.armature, map)
-        for i in range(self.frame_range[0], self.frame_range[1]):
+        for i in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
             # Matrices with respect to world space
             matrix_map: dict[str, Matrix] = {}
             get_pose_matrices(self.armature, matrix_map, i)
@@ -291,7 +291,7 @@ class BoneFrames(Frames):
         if not fcurves:
             return data
 
-        for i in range(self.frame_range[0], self.frame_range[1]):
+        for i in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
             data[str(i)] = {}
 
             # Matrices with respect to rest pose

@@ -8,6 +8,7 @@ Exchange animations between Garry's Mod Stop Motion Helper and Blender
   - [Features](#features)
   - [Remarks](#remarks)
   - [Issues](#issues)
+- [Gotchas](#gotchas)
 - [Tutorials](#tutorials)
   - [Configuration Walkthrough](#configuration-walkthrough)
   - [Obtaining maps](#obtaining-maps)
@@ -45,6 +46,9 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 
 ### Issues
 If you have found a bug, or you have a suggestion to improve this tool, please report it in the [issue tracker](https://github.com/vlazed/smh2blender/issues). This is the best way for me to act on them.
+
+## Gotchas
+- Starting from Blender 4.4, actions are slotted. This can be confusing when importing SMH animations, compared to earlier versions of Blender. Make sure to select `Legacy Slot` to see the SMH animation.
 
 ## Tutorials
 > [!IMPORTANT] 

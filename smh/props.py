@@ -9,6 +9,14 @@ from os.path import basename
 from .types import SMHPropertiesDict
 
 
+def SMHVersion():
+    return EnumProperty(name="Save version",
+                        description="Which version of SMH to use",
+                        items=[('3', "3.0", ""), ('4', "4.0", "")],
+                        default='4'
+                        )
+
+
 class SMHProperties(bpy.types.PropertyGroup):
     def set_model(self, value: str):
         if len(value.strip()) == 0:
@@ -56,8 +64,7 @@ class SMHProperties(bpy.types.PropertyGroup):
     map: StringProperty(
         name="Map",
         description="Where the animation will play. It informs the animator that an animation is made for a specific place",
-        default="gm_construct"
-    )
+        default="gm_construct")
 
     def to_json(self) -> SMHPropertiesDict:
         data = {
@@ -86,8 +93,7 @@ class SMHMetaData(bpy.types.PropertyGroup):
         name="Reference",
         description="An SMH animation file of the model in reference pose. This is mainly used to pose the model from the physical bones.",
         default="",
-        subtype='FILE_PATH'
-    )
+        subtype='FILE_PATH')
     savepath: StringProperty(
         name="Save path",
         description="Choose where to save animation file",

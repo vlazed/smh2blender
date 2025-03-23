@@ -224,6 +224,15 @@ def load_map(map_path: str):
     return map
 
 
+def has_keyframe(fcurves: bpy.types.ActionFCurves, frame: float):
+    for fcurve in fcurves:
+        for keyframe in fcurve.keyframe_points:
+            if keyframe.co[0] == frame:
+                return True
+
+    return False
+
+
 class SMHEntity():
     data: SMHEntityDict
     armature: ArmatureObject
@@ -272,7 +281,7 @@ class SMHEntity():
         self.armature = armature
         self.metadata = metadata
 
-    def bake_to_smh(self):
+    def bake_to_smh(self, frame_step: int = 1, check_keyframe: bool = False):
         """Read physics map and bone map, and write SMH animation data from the Blender
 
         Returns:
@@ -294,7 +303,7 @@ class SMHEntity():
             bone_map = f.read().splitlines()
 
         frame_range = (floor(action.frame_start), floor(
-            action.frame_end + 1))
+            action.frame_end + 1), frame_step)
 
         physbone_frames = PhysBoneFrames(
             self.armature, frame_range).to_json(map=physics_obj_map)
@@ -302,8 +311,12 @@ class SMHEntity():
         bone_frames = BoneFrames(
             self.armature, frame_range).to_json(map=bone_map)
 
-        for frame in range(frame_range[0], frame_range[1]):
+        for frame in range(frame_range[0], frame_range[1], frame_range[2]):
             entityData = SMHEntityData(armature=self.armature, position=frame)
+
+            if check_keyframe and not has_keyframe(action.fcurves, frame):
+                continue
+
             self.data["Frames"].append(entityData.to_json(
                 physbone_frames[str(frame)], bone_frames[str(frame)]))
 
@@ -355,7 +368,6 @@ class SMHEntity():
         action = bpy.data.actions.new(filename)
         action.use_frame_range = True
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
-        physics_tree = PhysBoneTree(armature, physics_obj_map)
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
         armature.animation_data_create()
         armature.animation_data.action = action
@@ -370,12 +382,16 @@ class SMHEntity():
 
 class SMHFile():
     data: SMHFileDict
+    check_keyframes: bool
+    frame_step: int
 
-    def __init__(self, map: str = "none"):
+    def __init__(self, map: str = "none", check_keyframes: bool = False, frame_step: int = 1):
         self.data = {
             "Map": map,
             "Entities": []
         }
+        self.check_keyframes = check_keyframes
+        self.frame_step = 1 if check_keyframes else frame_step
 
     def serialize(self, armature: bpy.types.Armature, metadata: SMHMetaData, properties: SMHProperties) -> str:
         # TODO: Support multiple armatures as other entities
@@ -386,7 +402,12 @@ class SMHFile():
         )
 
         # Call their `bake_to_smh` functions and store their strings per entity
-        self.data["Entities"].append(entity.bake_to_smh())
+        self.data["Entities"].append(
+            entity.bake_to_smh(
+                frame_step=self.frame_step,
+                check_keyframe=self.check_keyframes
+            )
+        )
 
         return json.dumps(self.data, indent=4)
 
