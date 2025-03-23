@@ -23,6 +23,7 @@ Exchange animations between Garry's Mod Stop Motion Helper and Blender
 This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SMH) and Blender; it can generate an SMH 4.0 animation file from a Blender action and vice versa, given that we tell Blender how GMod defines the collision model and bone hierarchy of its entities.
 
 ### Requirements
+- [Script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone maps
 - Blender 2.8 and up
 - Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
 
@@ -60,7 +61,10 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
 **Bone map** and **Physics map** refer to the maps obtained in the [Obtaining maps](#obtaining-maps) tutorial. In addition to these is **Reference**, which is a SMH animation file of a model in reference pose. **Ref Name** refers to the name of the entity in the Reference file (usually, the model name). To obtain this, read the [Stop Motion Helper to Blender](#stop-motion-helper-to-blender) tutorial.
 
 ### Obtaining maps
-Maps are simple `.txt` files which define the order of bones or physics objects of a certain model. They look like this:
+> [!IMPORTANT]
+> Make sure that the script in the [requirements](#requirements) is installed before proceeding.
+
+Maps are simple `.txt` files which define the order of bones or physics objects of a certain model. Their contents look like this:
 ```
 bip_pelvis
 bip_spine_0
@@ -72,33 +76,9 @@ bip_foot_R
 ```
 We have maps so Blender can properly distinguish ragdoll animations. Maps can be obtained from the GMod command console.
 
-To obtain a **physics object map**, look at the ragdoll of interest, open the command console, and run
-```
-trace
-```
-This runs a ray that starts at the player's eyes and ends at where the player is looking. This will produce some trace information in the console. Find the following information:
-```
-...
-Model: models/player/soldier.mdl
-Entity [79][prop_ragdoll]
-```
-The number is important: `79` is the **entity index**, which corresponds to a `prop_ragdoll`. The `Model` is also important. In the sane case, if a player is looking at a TF2 Soldier, its model path should correspond to `models/player/soldier.mdl`, or similar.
+To obtain a **physics object map** and **bone map** in GMod, open the spawnmenu (by default, hold `Q` or press `F1`), and navigate to `Utilities > vlazed > SMH Importer/Exporter`. Make sure to look at a ragdoll or prop, and press the corresponding buttons to get the maps from view. 
 
-Keep the number in mind, `N = 79`. Next, run `clear` and the following command:
-```
-lua_run local entity = Entity(N) for i = 0, entity:GetPhysicsObjectCount() - 1 do print(entity:GetBoneName(entity:TranslatePhysBoneToBone(i))) end
-```
-`N` is the **entity index**. This must be set to that number (e.g. `79`), or else the command will get an error. Make sure to run the `clear` command when making corrections to the `lua_run` command. 
-
-The first command `clear` removes excessive information on the console, and the `lua_run ...` command prints the name of the bone that corresponds to a physics object. The reason for `clear` is to make it easier for the user to copy and paste the names of the bones. This is done by `Ctrl+A` or `Cmd+A`, and then attempting to copy the contents of the console.
-
-Paste the console contents into a text file and remove excessive information (such as the `lua_run` statement). The mapping should look like the one shown in the [beginning of this tutorial](#obtaining-maps). Save the text file somewhere convenient. This text file is the physics object map.
-
-The steps are almost the same for the **bone map**, but the command is different. Remember the entity index `N`, run `clear`, and then the following command:
-```
-lua_run local entity = Entity(N) for i = 0, entity:GetBoneCount() - 1 do print(entity:GetBoneName(i)) end
-```
-This will print more bone names to the console than the previous step. Copy everything from the console, paste into a text file, remove excessive information, and save the text file next to the physics object map. This new text file is the bone map.
+If done correctly, a list of bone names, which correspond to the list shown earlier in this tutorial, will appear. Copy and paste these bone names into a separate text file and name them (for example, `heavy_physmap.txt` and `heavy_bonemap.txt`).
 
 These maps allow the animator to proceed to the next steps of exchanging animations between GMod and Blender.
 
