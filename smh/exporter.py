@@ -1,11 +1,16 @@
+import bpy
+
 from bpy.types import Bone, PoseBone, ActionFCurves, Armature, Object
-from math import degrees, radians
+from math import degrees, radians, floor
 from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
 
-from .types.frame import BoneData, PhysBoneData
-from .types.shared import BoneMap
+from .types.frame import BoneData, PhysBoneData, SMHFrameResult, SMHFrameBuilder
+from .types.shared import BoneMap, ArmatureObject, SMHFileType
+from .types.entity import SMHEntityResult
+
+from .props import SMHExportProperties
 
 ORDER = 'XYZ'
 
@@ -305,3 +310,80 @@ class BoneFrames(Frames):
                     data[str(i)][str(boneIndex)] = frame.to_json()
 
         return data
+
+
+class SMHFrameData():
+    data: SMHFrameResult
+    armature: ArmatureObject
+    position: int
+
+    def __init__(self, type: SMHFileType, position: int, armature: ArmatureObject):
+        self.data = SMHFrameBuilder(position=position).build(type=type)
+        self.type = type
+        self.armature = armature
+        self.position = position
+
+    def bake_physbones(self, physbones):
+        self.data["EntityData"]["physbones"] = physbones
+        if self.type == '3':
+            self.data['Modifier'] = "physbones"  # type: ignore
+
+    def bake_bones(self, bones):
+        self.data["EntityData"]["bones"] = bones
+        if self.type == '3':
+            self.data['Modifier'] = "bones"  # type: ignore
+
+
+def has_keyframe(fcurves: bpy.types.ActionFCurves, frame: float):
+    for fcurve in fcurves:
+        for keyframe in fcurve.keyframe_points:
+            if keyframe.co[0] == frame:
+                return True
+
+    return False
+
+
+class SMHExporter():
+    frame_range: tuple[int, int, int]
+    action: bpy.types.Action
+    armature: ArmatureObject
+
+    def __init__(self, action: bpy.types.Action, armature: ArmatureObject, frame_step: int, use_scene_range: bool):
+        scene = bpy.context.scene
+        self.frame_range = (
+            floor(scene.frame_start if use_scene_range else action.frame_start),
+            floor(scene.frame_end + 1 if use_scene_range else action.frame_end + 1),
+            frame_step
+        )
+        self.armature = armature
+        self.action = action
+
+    def prepare_physics(self, physics_obj_map: BoneMap):
+        self.physbone_frames = PhysBoneFrames(
+            self.armature, self.frame_range).to_json(map=physics_obj_map)
+
+    def prepare_bones(self, bone_map: BoneMap):
+        self.bone_frames = BoneFrames(
+            self.armature, self.frame_range).to_json(map=bone_map)
+
+    def export(self, data: SMHEntityResult, export_props: SMHExportProperties):
+        frame_range = self.frame_range
+        for frame in range(frame_range[0], frame_range[1], frame_range[2]):
+            if export_props.keyframes_only and not has_keyframe(self.action.fcurves, frame):
+                continue
+
+            if export_props.smh_version == '3':
+                physbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
+                physbone_frame.bake_physbones(physbones=self.physbone_frames[str(frame)])
+
+                nonphysbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
+                nonphysbone_frame.bake_bones(bones=self.bone_frames[str(frame)])
+
+                data["Frames"].append(physbone_frame.data)
+                data["Frames"].append(nonphysbone_frame.data)
+            else:
+                entity_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
+                entity_frame.bake_physbones(physbones=self.physbone_frames[str(frame)])
+                entity_frame.bake_bones(bones=self.bone_frames[str(frame)])
+
+                data["Frames"].append(entity_frame.data)

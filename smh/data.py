@@ -2,40 +2,16 @@ import bpy
 
 import json
 import os
-from math import floor
 
 
 from .types.shared import ArmatureObject, SMHFileType
 from .types.file import SMHFileBuilder, SMHFileResult
 from .types.entity import SMHEntityBuilder, SMHEntityResult
-from .types.frame import SMHFrameResult, SMHFrameBuilder
 
 from .props import SMHMetaData, SMHProperties, SMHExportProperties, SMHImportProperties
 
-from .exporter import PhysBoneFrames, BoneFrames
+from .exporter import SMHExporter as exp
 from .importer import SMHImporter as imp
-
-
-class SMHFrameData():
-    data: SMHFrameResult
-    armature: ArmatureObject
-    position: int
-
-    def __init__(self, type: SMHFileType, position: int, armature: ArmatureObject):
-        self.data = SMHFrameBuilder(position=position).build(type=type)
-        self.type = type
-        self.armature = armature
-        self.position = position
-
-    def bake_physbones(self, physbones):
-        self.data["EntityData"]["physbones"] = physbones
-        if self.type == '3':
-            self.data['Modifier'] = "physbones"  # type: ignore
-
-    def bake_bones(self, bones):
-        self.data["EntityData"]["bones"] = bones
-        if self.type == '3':
-            self.data['Modifier'] = "bones"  # type: ignore
 
 
 def load_map(map_path: str):
@@ -44,15 +20,6 @@ def load_map(map_path: str):
         map = f.read().splitlines()
 
     return map
-
-
-def has_keyframe(fcurves: bpy.types.ActionFCurves, frame: float):
-    for fcurve in fcurves:
-        for keyframe in fcurve.keyframe_points:
-            if keyframe.co[0] == frame:
-                return True
-
-    return False
 
 
 class SMHEntity():
@@ -82,8 +49,7 @@ class SMHEntity():
             SMHEntityResult: SMH animation data representing the Blender action
         """
 
-        frame_step = 1 if export_props.keyframes_only else export_props.frame_step,
-        check_keyframe = export_props.keyframes_only,
+        frame_step = 1 if export_props.keyframes_only else export_props.frame_step
         use_scene_range = export_props.use_scene_range
 
         action = self.armature.animation_data.action
@@ -92,46 +58,13 @@ class SMHEntity():
             # doesn't (and to silence linting errors)
             return self.data
 
-        physics_obj_map = []
-        with open(bpy.path.abspath(self.metadata.physics_obj_path)) as f:
-            physics_obj_map = f.read().splitlines()
+        physics_obj_map = load_map(bpy.path.abspath(self.metadata.physics_obj_path))
+        bone_map = load_map(bpy.path.abspath(self.metadata.bone_path))
 
-        bone_map = []
-        with open(bpy.path.abspath(self.metadata.bone_path)) as f:
-            bone_map = f.read().splitlines()
-
-        scene = bpy.context.scene
-        frame_range = (
-            floor(scene.frame_start if use_scene_range else action.frame_start),
-            floor(scene.frame_end + 1 if use_scene_range else action.frame_end + 1),
-            frame_step[0]
-        )
-
-        physbone_frames = PhysBoneFrames(
-            self.armature, frame_range).to_json(map=physics_obj_map)
-
-        bone_frames = BoneFrames(
-            self.armature, frame_range).to_json(map=bone_map)
-
-        for frame in range(frame_range[0], frame_range[1], frame_range[2]):
-            if check_keyframe and not has_keyframe(action.fcurves, frame):
-                continue
-
-            if self.type == '3':
-                physbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
-                physbone_frame.bake_physbones(physbones=physbone_frames[str(frame)])
-
-                nonphysbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
-                nonphysbone_frame.bake_bones(bones=bone_frames[str(frame)])
-
-                self.data["Frames"].append(physbone_frame.data)
-                self.data["Frames"].append(nonphysbone_frame.data)
-            else:
-                entityData = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
-                entityData.bake_physbones(physbones=physbone_frames[str(frame)])
-                entityData.bake_bones(bones=bone_frames[str(frame)])
-
-                self.data["Frames"].append(entityData.data)
+        exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
+        exporter.prepare_physics(physics_obj_map=physics_obj_map)
+        exporter.prepare_bones(bone_map=bone_map)
+        exporter.export(self.data, export_props=export_props)
 
         return self.data
 
