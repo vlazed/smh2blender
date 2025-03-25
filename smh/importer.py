@@ -1,7 +1,7 @@
 import bpy
 
 from mathutils import Vector, Euler, Matrix
-from typing import Generator
+from typing import Generator, Any
 from math import radians
 
 from .types.frame import GenericBoneData, PhysBoneData, BoneData
@@ -11,6 +11,38 @@ from .types.file import SMHFileResult
 
 from .exporter import PhysBoneTree
 from .props import SMHMetaData
+
+
+def transform_modifier(data):
+    if type(data) == dict:
+        for key, val in data.items():
+            if type(val) == dict:
+                data[key] = transform_modifier(val)
+            elif type(val) == str and (val.startswith("{") or val.startswith("[")):
+                data[key] = [float(x) for x in val[1:-1].split(" ")]
+            elif key == '0' or key in 'rgba':
+                return [v for v in data.values()]
+
+    return data
+
+
+class ModifierField:
+    data: Any
+    name: str
+
+    def __init__(self, name: str, frame: int, data):
+        if name == "color":
+            name = "smh_color"
+
+        self.data = transform_modifier(data)
+        self.name = name
+        self.frame = frame
+
+    def __str__(self):
+        return f"{self.name} {self.frame}"
+
+    def __repr__(self):
+        return f"ModifierField({self.name}, {self.frame}, {self.data})"
 
 
 class GenericBoneField:
@@ -189,6 +221,23 @@ class SMHImporter:
         ]
 
     @staticmethod
+    def load_modifiers(entity: SMHEntityResult):
+        flat_list = [
+            ModifierField(data=datum, name=name, frame=frame["Position"])
+            for frame in entity["Frames"] if dict(frame["EntityData"]) for name, datum in frame["EntityData"].items()
+            if name != "bones" and name != "physbones"
+        ]
+
+        group: dict[str, list[Any]] = {}
+
+        for mod in flat_list:
+            if mod.name not in group:
+                group[mod.name] = []
+            group[mod.name].append(mod)
+
+        return group
+
+    @staticmethod
     def load_entity(data: SMHFileResult, name: str, type: SMHFileType = '4'):
         if type == '2':
             return next((
@@ -203,11 +252,11 @@ class SMHImporter:
 
     def create_fc(
         self,
-        index: float,
         frames: list[int],
         samples: Generator[float, None, None],
         data_path: str,
-        group_name: str
+        group_name: str,
+        index: float = 0
     ):
         num_frames = len(frames)
         interpolation = [
@@ -277,7 +326,7 @@ class SMHImporter:
 
         return pos, ang, frames
 
-    def fcurves_from_data(
+    def fcurves_from_pose(
         self,
         pos: list[Generator[float, None, None]],
         ang: list[Generator[float, None, None]],
@@ -301,6 +350,59 @@ class SMHImporter:
             [self.create_fc(
                 index=index, samples=samples, data_path=data_path,
                 group_name=name, frames=frames) for index, samples in enumerate(ang) if samples is not None]
+
+    def fcurves_from_modifier(
+        self,
+        frames: list[float],
+        samples: list[list[float]],
+        data_path: str,
+        name: str,
+    ):
+        [
+            self.create_fc(
+                data_path=data_path,
+                group_name=name,
+                index=i,
+                frames=frames,
+                samples=subsamples
+            )
+            for i, subsamples in enumerate(samples)
+        ]
+
+    def import_modifiers(self, mod_data: dict[str, list[ModifierField]], metadata: SMHMetaData):
+        for name, mod_list in mod_data.items():
+            # Iterate over the modifiers that are keyed in the data
+            attr: bpy.types.PropertyGroup | None = getattr(self.armature, name, None)
+            if not attr:
+                continue
+
+            props = [prop for prop in attr.bl_rna.properties if prop.is_runtime]
+            frames = [m.frame for m in mod_list]
+            for prop in props:
+                samples = []
+                if prop.identifier == 'value':
+                    # Directly set the value
+                    samples = [m.data for m in mod_list]
+                else:
+                    # Set the value for each property
+                    samples = [m.data[prop.identifier] for m in mod_list]
+                prop_obj = getattr(attr, prop.name, None)
+
+                if prop_obj is not None and prop.type == 'COLLECTION':
+                    sample_length = len(next((sample for sample in samples)))
+                    if len(prop_obj.items()) != sample_length:
+                        [prop_obj.add() for _ in range(sample_length)]
+                        for i in range(sample_length):
+                            obj: bpy.types.PropertyGroup = prop_obj[i]
+                            obj.name = str(i)
+
+                # Convert each value in samples to a list, so we end up with a list of lists
+                samples = [[sample] if type(sample) != list else sample for sample in samples]
+                # "Tranpose" the list of lists, makes it easier to zip frames with samples together
+                # https://stackoverflow.com/questions/6473679/transpose-list-of-lists
+                samples = list(map(list, zip(*samples)))
+                data_path = f'{name}.{prop.identifier}'
+                self.fcurves_from_modifier(frames=frames, samples=samples, data_path=data_path, name=name)
 
     def import_physics(self, physbone_data: list[list[PhysBoneField]], metadata: SMHMetaData):
         # Stop Motion Helper reports the root physics object location as an offset from the ground (about 38 units)
@@ -332,7 +434,7 @@ class SMHImporter:
             if self.physics_tree.get_parent(phys_name) is None:
                 bone.bone.use_local_location = False
 
-            self.fcurves_from_data(
+            self.fcurves_from_pose(
                 pos,
                 ang,
                 frames,
@@ -353,7 +455,7 @@ class SMHImporter:
                 bone=bone,
             )
 
-            self.fcurves_from_data(
+            self.fcurves_from_pose(
                 pos,
                 ang,
                 frames,

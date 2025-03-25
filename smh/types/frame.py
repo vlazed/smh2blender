@@ -18,6 +18,10 @@ class PhysBoneData(GenericBoneData):
     Moveable: bool | None
 
 
+class ModifierData(TypedDict):
+    pass
+
+
 class SMHEntityDataDict(TypedDict):
     bones: dict[str, BoneData]
     physbones: dict[str, PhysBoneData]
@@ -56,13 +60,15 @@ class SMHFrameBuilder:
             "Position": position,
         }
 
+    def add_data(self, key: str, data):
+        self.shared["EntityData"][key] = data
+
+    def add_description(self, key: str, data):
+        self.shared[key] = data
+
     def build(self, type: SMHFileType = '4'):
         if type == '2':
             data2: SMHFrame2_0 = self.shared
-            data2["EntityData"] = {
-                "bones": {},
-                "physbones": {},
-            }
             data2["EaseIn"] = data2["EaseOut"] = 0
             return data2
         elif type == '3':
@@ -71,12 +77,8 @@ class SMHFrameBuilder:
             return data3
         else:
             data4: SMHFrame4_0 = self.shared
-            data4["EntityData"] = {
-                "bones": {},
-                "physbones": {},
-            }
-            data4["EaseIn"] = data4["EaseOut"] = {
-                "bones": 0.0,
-                "physbones": 0.0
-            }
+            data4["EaseIn"] = data4["EaseOut"] = {}
+
+            for key in data4["EntityData"].keys():
+                data4["EaseIn"][key] = data4["EaseOut"][key] = 0.0
             return data4

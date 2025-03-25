@@ -16,13 +16,14 @@ from bpy.props import PointerProperty
 
 from .smh.props import SMHProperties, SMHMetaData, SMHExportProperties, SMHImportProperties
 from .smh.data import SMHFile
+from .smh.modifiers import register_modifiers, unregister_modifiers
 
 bl_info = {
     "name": "SMH Importer/Exporter",
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 3, 0),
+    "version": (0, 4, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -283,6 +284,8 @@ classes = (
 
 
 def register():
+    register_modifiers()
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -293,6 +296,8 @@ def register():
 
 
 def unregister():
+    unregister_modifiers()
+
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.smh_metadata

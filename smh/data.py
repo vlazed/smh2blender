@@ -64,6 +64,7 @@ class SMHEntity():
         exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
         exporter.prepare_bones(bone_map=bone_map)
+        exporter.prepare_modifiers()
         exporter.export(self.data, export_props=export_props)
 
         return self.data
@@ -117,6 +118,7 @@ class SMHEntity():
             ]
             for physbone_row in physbone_data
         ]
+        modifier_data = imp.load_modifiers(entity=entity)
 
         action = bpy.data.actions.new(filename)
         action.use_frame_range = True
@@ -128,6 +130,7 @@ class SMHEntity():
         importer = imp(physics_obj_map, bone_map, armature, action, entity)
         importer.import_bones(bone_data)
         importer.import_physics(physbone_data, metadata)
+        importer.import_modifiers(modifier_data, metadata=metadata)
 
         return True, f"Successfully loaded {filename}"
 

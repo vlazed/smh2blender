@@ -50,6 +50,7 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
   - This is mostly an issue when nonphysical bones (bones without a physics object) have a physical bone as its descendant (such as `bip_spine_3` and `bip_head`)
 - Blender's Euler angles are susceptible to gimbal locks. This affects imported SMH animations (most noticeable when animating with IK), and animations re-exported from Blender will not result in the original animation.
   - The animator can preserve the look of their animation as seen in GMod by converting every pose bone to the quaternion rotation mode before re-exporting.
+  - In addition, the animator can use `Discontinuity (Euler) Filter` (accessible from Graph Editor) to fix jumps between 180 and -180 degrees. This doesn't affect the animation in SMH, as SMH uses quaternions in the `LerpAngle` method
 
 ## Tutorials
 To learn how to use this addon, click [here](./docs/TUTORIAL.md).
