@@ -60,4 +60,5 @@ Please format your files to conform to the pep8 guidelines, and ensure you have 
 
 ## Acknowledgements
 
-- Spike from Peak Inc. for the idea
+- Spike from [Peak Inc](https://steamcommunity.com/groups/peakincompetence). for the idea
+- [Paper](https://steamcommunity.com/id/PforPaper) for being Mr. L from Paper Mario (addon tester)
