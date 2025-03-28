@@ -7,6 +7,18 @@ from math import radians
 from os.path import basename
 
 
+def SMHClass():
+    return EnumProperty(
+        name="Class",
+        default='prop_ragdoll',
+        description="The entity's class name, reflecting what they are in Source Engine",
+        items=[
+            ('prop_ragdoll', "Ragdoll", ""),
+            ('prop_physics', "Prop", ""),
+            ('prop_effect', "Effect", ""),
+        ])
+
+
 def SMHVersion():
     return EnumProperty(name="Save version",
                         description="Which version of SMH to use",
@@ -50,15 +62,7 @@ class SMHProperties(bpy.types.PropertyGroup):
         set=set_name,
         get=get_name,
     )
-    cls: EnumProperty(
-        name="Class",
-        default='prop_ragdoll',
-        description="The entity's class name, reflecting what they are in Source Engine",
-        items=[
-            ('prop_ragdoll', "Ragdoll", ""),
-            ('prop_physics', "Prop", ""),
-            ('prop_effect', "Effect", ""),
-        ])
+    cls: SMHClass()
     map: StringProperty(
         name="Map",
         description="Where the animation will play. It informs the animator that an animation is made for a specific place",
@@ -131,6 +135,7 @@ class SMHMetaData(bpy.types.PropertyGroup):
         name="Ref Name",
         description="The name of the model to fetch from the reference file.",
     )
+    cls: SMHClass()
     ang_x: FloatProperty(
         name="X",
         min=-180,

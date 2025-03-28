@@ -24,7 +24,9 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 - Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
 
 ### Features
-- Animation translations between SMH and Blender. This allows the animator to work with Blender and its (extensible) animation libraries, which the user can import their animations from Blender into Garry's Mod. Conversely, the user can also animate in Stop Motion Helper and bring their work over to Blender for polishing or other work.
+- Animation translations between SMH and Blender. This allows the animator to work with Blender and its (extensible) animation libraries, which the user can import their animations from Blender into GMod. Conversely, the user can also animate in SMH and bring their work over to Blender for polishing or other work.
+- SMH Modifiers as custom properties. Modifiers can carry over between GMod and Blender. These modifiers are animatable in Blender, allowing the user to modify the values as they propagate over time (e.g. using Bezier splines or f-curve modifiers).
+  - For live feedback, these custom SMH Modifier properties can drive shapekey or camera values, or vice versa! 
 - (TODO) Support for multiple entities,
   - SMH to Blender: The addon will search for armatures with the same name and correspond with an SMH animation file, which will attempt to retarget its animations using a bone and collision model mapping.
   - Blender to SMH: The addon will collect all armatures and assign a name, a model path, and a bone and collision model mapping, and it will attempt to reconstruct the animation in an SMH animation file 
@@ -37,9 +39,9 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 2. Similarly, *collision model (or physics object) mappings* are required because in Stop Motion Helper, animations are performed on ragdolls. 
    - GMod distinguishes collision (physical) bones (e.g. head, arms, legs) and regular (nonphysical) bones (fingers, toes, helmets) for ragdolls. Blender lacks this knowledge since it treats all (pose) bones in an armature the same; thus, we must supply that information to allow Blender to distinguish between motions with physical bones and motions with nonphysical bones.
 
-3. Because this addon strictly works with a Blender armature, using the collision model and bone mappings to inform the translation, an SMH animation translated into Blender will distort the Blender armature, and a Blender animation translated into SMH will distort the ragdoll (seen if the ragdoll has stretching applied through the Ragdoll Stretch tool). 
-   - The distortion appears as a translation offset in the position of the physics objects on the ragdoll in GMod, or a translation offset in the position of the bones on the armature in Blender. Without ragdoll stretch, these effects are not noticeable on the GMod ragdoll at first. 
-   - This happens because SMH uses the position of a ragdoll's physics object to save and load physical bone data, instead of the bone position corresponding to the physics object. There is a difference between the position of the physics object (which may be the geometric center of the physics object) and the position of the bone that the physics object corresponds to, and this results in a distortion in the armature and in the ragdoll. **It is recommended to not make modifications to the Blender armature if translating the animation back into SMH**; it is fine if the animation is intended as a new sequence for the model.
+3. When importing into Blender, the addon requires a **reference file**, which is an SMH animation file of the model in a reference pose (A-Pose or T-Pose). 
+   - SMH reports the pose of a physics bone by the position and angles of the physics object corresponding to this bone. Blender cannot distinguish between the position of bones and the position of a physics object (which is the geometric center of the physics object). The reference file exists to correct this.
+   - Blender reports the pose of its bones in a similar way to how Source Engine reports the pose of its bones (see ManipulateBoneAngles or ManipulateBonePosition on GMod wiki). To make this distinction, the reference file is used to determine the offset that the animated bone has from the bone's reference pose.
 
 ### Issues
 If you have found a bug, or you have a suggestion to improve this tool, please report it in the [issue tracker](https://github.com/vlazed/smh2blender/issues). This is the best way for me to act on them.

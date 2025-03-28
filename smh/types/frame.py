@@ -25,6 +25,7 @@ class ModifierData(TypedDict):
 class SMHEntityDataDict(TypedDict):
     bones: dict[str, BoneData]
     physbones: dict[str, PhysBoneData]
+    position: GenericBoneData
 
 
 class SMHFrameBase(TypedDict):

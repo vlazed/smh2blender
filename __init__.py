@@ -23,7 +23,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 4, 0),
+    "version": (0, 4, 1),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -260,6 +260,7 @@ class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
         box = layout.box()
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
         box.prop(metadata, "name")
+        box.prop(metadata, "cls")
         box.prop(metadata, "loadpath")
         box.prop(metadata, "import_stretch")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')

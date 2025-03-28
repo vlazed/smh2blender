@@ -101,7 +101,8 @@ class SMHEntity():
             if not ref_entity:
                 return False, f"Failed to load {filename}: reference entity name doesn't match {name}"
             ref_physbone_data = imp.load_physbones(
-                armature=armature, entity=ref_entity)
+                armature=armature, entity=ref_entity, metadata=metadata, is_ref=True
+            )
 
         entity = imp.load_entity(data, name, type=import_props.smh_version)
 
