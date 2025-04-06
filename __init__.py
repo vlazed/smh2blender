@@ -101,22 +101,22 @@ class ConvertBlenderToSMH(bpy.types.Operator):
         return wm.invoke_props_dialog(self)
 
     def execute(self, context):
-        scene = context.scene
-        metadata: SMHMetaData = scene.smh_metadata
-        properties: SMHProperties = scene.smh_properties
-        export_props: SMHExportProperties = scene.smh_export_props
-
         # We polled for an armature, so our active object should be one
         armature: bpy.types.Armature | bpy.types.Object = context.active_object
+
+        scene = context.scene
+        metadata: SMHMetaData = armature.smh_metadata
+        properties: SMHProperties = armature.smh_properties
+        export_props: SMHExportProperties = scene.smh_export_props
 
         if not armature.animation_data.action:
             show_message(
                 "No animation found. Make sure that an armature has an `Animation`", "Error", 'ERROR')
             return {'CANCELLED'}
 
-        result = check_metadata_for_maps(metadata=metadata)
-        if not result:
-            show_message(*result[2])
+        result, msg = check_metadata_for_maps(metadata=metadata)
+        if not result and msg:
+            show_message(*msg)
             return {'CANCELLED'}
 
         if not properties.name:
@@ -176,13 +176,13 @@ class ConvertSMHToBlender(bpy.types.Operator):
         return context.active_object and context.active_object.type == 'ARMATURE'
 
     def execute(self, context):
-        scene = context.scene
-        metadata: SMHMetaData = scene.smh_metadata
-        properties: SMHProperties = scene.smh_properties
-        import_props: SMHImportProperties = scene.smh_import_props
-
         # We polled for an armature, so our active object should be one
         armature: bpy.types.Armature | bpy.types.Object = context.active_object
+
+        scene = context.scene
+        metadata: SMHMetaData = armature.smh_metadata
+        properties: SMHProperties = armature.smh_properties
+        import_props: SMHImportProperties = scene.smh_import_props
 
         passed, msg = check_smh_file(metadata.loadpath)
         if not passed:
@@ -203,9 +203,9 @@ class ConvertSMHToBlender(bpy.types.Operator):
                 'ERROR')
             return {'CANCELLED'}
 
-        result = check_metadata_for_maps(metadata=metadata)
-        if not result:
-            show_message(*result[2])
+        result, msg = check_metadata_for_maps(metadata=metadata)
+        if not result and msg:
+            show_message(*msg)
             return {'CANCELLED'}
 
         abspath = bpy.path.abspath(metadata.loadpath)
@@ -238,9 +238,13 @@ class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        scene = context.scene
-        metadata: SMHMetaData = scene.smh_metadata
-        properties: SMHProperties = scene.smh_properties
+        object: bpy.types.Object = context.active_object
+        if not context.object or context.object.type != 'ARMATURE':
+            layout.label(text="Select an armature")
+            return
+
+        metadata: SMHMetaData = object.smh_metadata
+        properties: SMHProperties = object.smh_properties
 
         box = layout.box()
         box.label(text="Configuration", icon='TEXT')
@@ -290,8 +294,8 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.smh_metadata = PointerProperty(type=SMHMetaData)
-    bpy.types.Scene.smh_properties = PointerProperty(type=SMHProperties)
+    bpy.types.Object.smh_metadata = PointerProperty(type=SMHMetaData)
+    bpy.types.Object.smh_properties = PointerProperty(type=SMHProperties)
     bpy.types.Scene.smh_export_props = PointerProperty(type=SMHExportProperties)
     bpy.types.Scene.smh_import_props = PointerProperty(type=SMHImportProperties)
 
@@ -301,7 +305,7 @@ def unregister():
 
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.smh_metadata
-    del bpy.types.Scene.smh_properties
+    del bpy.types.Object.smh_metadata
+    del bpy.types.Object.smh_properties
     del bpy.types.Scene.smh_export_props
     del bpy.types.Scene.smh_import_props
