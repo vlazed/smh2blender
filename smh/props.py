@@ -27,6 +27,14 @@ def SMHVersion():
                         )
 
 
+def BatchProperty(name: str, description: str):
+    return BoolProperty(
+        name=name,
+        description=description,
+        default=False
+    )
+
+
 class SMHProperties(bpy.types.PropertyGroup):
     def set_model(self, value: str):
         if len(value.strip()) == 0:
@@ -92,9 +100,18 @@ class SMHExportProperties(bpy.types.PropertyGroup):
 
     smh_version: SMHVersion()
 
+    batch: BatchProperty(
+        "Batch Export",
+        "Export all actions from each armature in the scene into an SMH animation file. The selected armature's action will be used as the name"
+    )
+
 
 class SMHImportProperties(bpy.types.PropertyGroup):
     smh_version: SMHVersion()
+    batch: BatchProperty(
+        "Batch Import",
+        "Import the selected armature's animation file for all armatures in the scene. The name property from each armature's Import Settings will reference the selected armature's animation file"
+    )
 
 
 class SMHMetaData(bpy.types.PropertyGroup):
@@ -139,7 +156,7 @@ class SMHMetaData(bpy.types.PropertyGroup):
     ang_x: FloatProperty(
         name="X",
         min=-180,
-        max=180
+        max=180,
     )
     ang_y: FloatProperty(
         name="Y",

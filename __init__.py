@@ -13,17 +13,20 @@
 
 import bpy
 from bpy.props import PointerProperty
+from bl_operators.presets import AddPresetBase
+from bl_ui.utils import PresetPanel
 
 from .smh.props import SMHProperties, SMHMetaData, SMHExportProperties, SMHImportProperties
 from .smh.data import SMHFile
 from .smh.modifiers import register_modifiers, unregister_modifiers
+from .smh.types.shared import ArmatureObject
 
 bl_info = {
     "name": "SMH Importer/Exporter",
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 4, 1),
+    "version": (0, 5, 1),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -33,29 +36,31 @@ bl_info = {
 def show_message(message="", title="Message Box", icon='INFO'):
     # https://blender.stackexchange.com/questions/109711/how-to-popup-simple-message-box-from-python-console
 
+    print(message)
+
     def draw(self: bpy.types.Panel, context: bpy.types.Context):
         self.layout.label(text=message)
 
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
-def check_metadata_for_maps(metadata: SMHMetaData):
+def check_metadata_for_maps(metadata: SMHMetaData, armature: ArmatureObject):
     passed = True
     msg = None
     if not metadata.physics_obj_path:
         passed = False
         msg = (
-            "Empty physics map. Please supply a physics map and try again", "Error", 'ERROR')
+            f"{armature.name}: Empty physics map. Please supply a physics map and try again", "Error", 'ERROR')
 
     if not metadata.bone_path:
         passed = False
-        msg = ("Empty bone map. Please supply a bone map and try again",
+        msg = (f"{armature.name}: Empty bone map. Please supply a bone map and try again",
                "Error", 'ERROR')
 
     return passed, msg
 
 
-def check_smh_file(path):
+def check_smh_file(path: str, armature: ArmatureObject):
     passed = True
     msg = None
     if not path:
@@ -64,12 +69,12 @@ def check_smh_file(path):
     if passed and not path.endswith(".txt"):
         passed = False
         msg = (
-            "SMH animation files must end with \".txt\".", "Error", 'ERROR')
+            f"{armature.name}: SMH animation files must end with \".txt\".", "Error", 'ERROR')
 
     return passed, msg
 
 
-class ConvertBlenderToSMH(bpy.types.Operator):
+class SMH_OT_BlenderToSMH(bpy.types.Operator):
     """Translate Blender to SMH"""
     bl_idname = "smh.blender2smh"
     bl_label = "Export SMH File"
@@ -85,8 +90,9 @@ class ConvertBlenderToSMH(bpy.types.Operator):
         frame = layout.row()
         frame.enabled = not export_props.keyframes_only
         frame.prop(export_props, "frame_step")
-        row = layout.row()
-        row.prop(export_props, "smh_version")
+        col = layout.column()
+        col.prop(export_props, "batch")
+        col.prop(export_props, "smh_version")
 
         # # This won't show up in older versions of Blender. Nonetheless, this is certainly cosmetic
         # row.template_popup_confirm("smh.blender2smh", text="Export", cancel_text="Cancel", cancel_default=True)
@@ -100,59 +106,85 @@ class ConvertBlenderToSMH(bpy.types.Operator):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
-    def execute(self, context):
-        # We polled for an armature, so our active object should be one
-        armature: bpy.types.Armature | bpy.types.Object = context.active_object
-
-        scene = context.scene
-        metadata: SMHMetaData = armature.smh_metadata
-        properties: SMHProperties = armature.smh_properties
-        export_props: SMHExportProperties = scene.smh_export_props
-
-        if not armature.animation_data.action:
-            show_message(
-                "No animation found. Make sure that an armature has an `Animation`", "Error", 'ERROR')
-            return {'CANCELLED'}
-
-        result, msg = check_metadata_for_maps(metadata=metadata)
+    def check_armature(
+            self,
+            armature: ArmatureObject,
+            metadata: SMHMetaData,
+            properties: SMHProperties,
+            selected_metadata: SMHMetaData):
+        result, msg = check_metadata_for_maps(metadata=metadata, armature=armature)
         if not result and msg:
             show_message(*msg)
-            return {'CANCELLED'}
+            return False
 
         if not properties.name:
             show_message(
-                "Empty model name. Please give the model a descriptive name and try again", "Error", 'ERROR')
+                f"{armature.name}: Empty model name. Please give the model a descriptive name and try again", "Error", 'ERROR')
+            return False
+
+        if not selected_metadata.savepath:
+            show_message(
+                f"{armature.name}: Empty save path. Please supply a location to save the animation file and try again", "Error", 'ERROR')
+            return False
+
+        return True
+
+    def execute(self, context):
+        # We polled for an armature, so our active object should be one
+        selected_armature: ArmatureObject = context.active_object
+
+        scene = context.scene
+        selected_metadata: SMHMetaData = selected_armature.smh_metadata
+        selected_properties: SMHProperties = selected_armature.smh_properties
+        export_props: SMHExportProperties = scene.smh_export_props
+
+        action = selected_armature.animation_data.action
+        if not action:
+            show_message(
+                "No animation found. Make sure that the selected armature has an `Animation`", "Error", 'ERROR')
             return {'CANCELLED'}
 
-        if not properties.model:
+        armatures: list[ArmatureObject] = []
+        if export_props.batch:
+            for armature in bpy.data.objects:
+                if armature.type == 'ARMATURE':
+                    metadata: SMHMetaData = armature.smh_metadata
+                    properties: SMHProperties = armature.smh_properties
+                    if self.check_armature(armature, metadata, properties, selected_metadata):
+                        armatures.append(armature)
+        else:
+            if self.check_armature(
+                    selected_armature,
+                    selected_metadata,
+                    selected_properties,
+                    selected_metadata=selected_metadata
+            ):
+                armatures.append(selected_armature)
+
+        if not armatures:
             show_message(
-                "Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`",
+                "Selected armature or armatures in scene did not pass. Check the message boxes to figure out the issue",
                 "Error",
                 'ERROR')
             return {'CANCELLED'}
 
-        if not metadata.savepath:
-            show_message(
-                "Empty save path. Please supply a location to save the animation file and try again", "Error", 'ERROR')
-            return {'CANCELLED'}
+        filename = action.name + ".txt"
 
-        fileName = armature.animation_data.action.name + ".txt"
-
-        contents = SMHFile().serialize(armature=armature, metadata=metadata, properties=properties, export_props=export_props)
+        contents = SMHFile().serialize(armatures=armatures, properties=selected_properties, export_props=export_props)
         try:
-            with open(bpy.path.abspath(metadata.savepath + fileName), "w+") as f:
+            with open(bpy.path.abspath(selected_metadata.savepath + filename), "w+") as f:
                 f.write(contents)
         except Exception as e:
             show_message(
-                f"An error as occurred during the process: {e}", "Error", 'ERROR')
+                f"SMH Exporter: An error as occurred during the process: {e}", "Error", 'ERROR')
             return {'CANCELLED'}
 
         show_message(
-            f"Successfully wrote save file to {metadata.savepath + fileName}", "Save success")
+            f"SMH Exporter: Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")
         return {'FINISHED'}
 
 
-class ConvertSMHToBlender(bpy.types.Operator):
+class SMH_OT_SMHToBlender(bpy.types.Operator):
     """Translate SMH to Blender"""
     bl_idname = "smh.smh2blender"
     bl_label = "Import SMH File"
@@ -163,8 +195,9 @@ class ConvertSMHToBlender(bpy.types.Operator):
         import_props: SMHImportProperties = context.scene.smh_import_props
         layout = self.layout
 
-        row = layout.row()
-        row.prop(import_props, "smh_version")
+        col = layout.column()
+        col.prop(import_props, "batch")
+        col.prop(import_props, "smh_version")
 
     def invoke(self, context, event):
         wm = context.window_manager
@@ -175,40 +208,36 @@ class ConvertSMHToBlender(bpy.types.Operator):
         # disable the operator if no Armature object is selected
         return context.active_object and context.active_object.type == 'ARMATURE'
 
-    def execute(self, context):
-        # We polled for an armature, so our active object should be one
-        armature: bpy.types.Armature | bpy.types.Object = context.active_object
-
-        scene = context.scene
+    def convert(self, armature: ArmatureObject, selected_metadata: SMHMetaData, import_props: SMHImportProperties):
         metadata: SMHMetaData = armature.smh_metadata
         properties: SMHProperties = armature.smh_properties
-        import_props: SMHImportProperties = scene.smh_import_props
 
-        passed, msg = check_smh_file(metadata.loadpath)
+        passed, msg = check_smh_file(selected_metadata.loadpath, armature)
         if not passed:
             show_message(
-                *msg or ("No animation file supplied. Please supply one and try again", "Error", 'ERROR'))
-            return {'CANCELLED'}
+                *msg or (f"{armature.name}: No animation file supplied. Please supply one and try again", "Error", 'ERROR'))
+            return False
 
-        passed, msg = check_smh_file(metadata.ref_path)
+        passed, msg = check_smh_file(metadata.ref_path, armature)
         if not passed:
             show_message(
-                *msg or ("No reference file supplied. Please supply one and try again", "Error", 'ERROR'))
-            return {'CANCELLED'}
+                *msg or (f"{armature.name}: No reference file supplied. Please supply one and try again", "Error", 'ERROR'))
+            return False
 
         if not properties.model:
             show_message(
-                "Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`",
+                f"{armature.name}: Empty model path. Please supply an accurate model path for the specified armature (e.g. `models/kleiner.mdl`). If you have a .qc file, you can review the `$modelname`",
                 "Error",
                 'ERROR')
-            return {'CANCELLED'}
+            return False
 
-        result, msg = check_metadata_for_maps(metadata=metadata)
+        result, msg = check_metadata_for_maps(metadata=metadata, armature=armature)
         if not result and msg:
             show_message(*msg)
-            return {'CANCELLED'}
+            return False
 
-        abspath = bpy.path.abspath(metadata.loadpath)
+        # Use the selected armature's loaded SMH file
+        abspath = bpy.path.abspath(selected_metadata.loadpath)
         with open(abspath) as f:
             result, msg = SMHFile().deserialize(
                 f, metadata=metadata,
@@ -216,11 +245,26 @@ class ConvertSMHToBlender(bpy.types.Operator):
             )
 
             show_message(
-                msg, "Success" if result else "Error",
+                f"{armature.name}: {msg}", "Success" if result else "Error",
                 'INFO' if result else 'ERROR')
 
             if not result:
-                return {'CANCELLED'}
+                return False
+
+        return True
+
+    def execute(self, context):
+        scene = context.scene
+        import_props: SMHImportProperties = scene.smh_import_props
+        selected_armature: ArmatureObject = context.active_object
+        selected_metadata: SMHMetaData = selected_armature.smh_metadata
+
+        if import_props.batch:
+            for armature in bpy.data.objects:
+                if armature.type == 'ARMATURE':
+                    self.convert(armature, selected_metadata, import_props)
+        else:
+            self.convert(selected_armature, selected_metadata, import_props)
 
         return {'FINISHED'}
 
@@ -231,9 +275,60 @@ class View3DPanel:
     bl_category = "Animation"
 
 
-class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
+class SMH_PT_SMHPresets(PresetPanel, bpy.types.Panel):
+    bl_label = "SMH Importer/Exporter Presets"
+    preset_subdir = "smh2blender"
+    preset_operator = "script.execute_preset"
+    preset_add_operator = "smh.add_smh_preset"
+
+
+class SMH_MT_SMHPresets(bpy.types.Menu):
+    bl_label = "SMH Importer/Exporter Presets"
+    preset_subdir = "smh2blender"
+    preset_operator = "script.execute_preset"
+    draw = bpy.types.Menu.draw_preset
+
+
+class SMH_OT_AddSMHPreset(AddPresetBase, bpy.types.Operator):
+    bl_idname = "smh.add_smh_preset"
+    bl_label = "Save SMH Importer/Exporter Preset"
+    preset_menu = 'SMH_MT_SMHPresets'
+    bl_options = {'UNDO', 'REGISTER'}
+
+    preset_defines = {
+        'metadata = bpy.context.active_object.smh_metadata',
+        'props = bpy.context.active_object.smh_properties'
+    }
+
+    preset_values = [
+        'props.model',
+        'props.name',
+        'props.cls',
+        'props.map',
+
+        'metadata.physics_obj_path',
+        'metadata.bone_path',
+        'metadata.ref_path',
+        'metadata.ref_name',
+        'metadata.savepath',
+        'metadata.loadpath',
+        'metadata.name',
+        'metadata.cls',
+        'metadata.ang_x',
+        'metadata.ang_y',
+        'metadata.ang_z',
+        'metadata.import_stretch',
+    ]
+
+    preset_subdir = 'smh2blender'
+
+
+class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_smh_blender"
     bl_label = "SMH Importer/Exporter"
+
+    def draw_header_preset(self, context):
+        SMH_PT_SMHPresets.draw_panel_header(self.layout)
 
     def draw(self, context):
         layout = self.layout
@@ -278,13 +373,17 @@ class BlenderSMHPanel(View3DPanel, bpy.types.Panel):
 
 
 classes = (
-    ConvertBlenderToSMH,
-    ConvertSMHToBlender,
     SMHProperties,
     SMHExportProperties,
     SMHImportProperties,
     SMHMetaData,
-    BlenderSMHPanel
+
+    SMH_OT_BlenderToSMH,
+    SMH_OT_SMHToBlender,
+    SMH_MT_SMHPresets,
+    SMH_PT_SMHPresets,
+    SMH_OT_AddSMHPreset,
+    SMH_PT_Menu
 )
 
 

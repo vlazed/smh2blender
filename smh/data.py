@@ -121,7 +121,7 @@ class SMHEntity():
         ]
         modifier_data = imp.load_modifiers(entity=entity)
 
-        action = bpy.data.actions.new(filename)
+        action = bpy.data.actions.new(f"{filename}_{armature.name}" if import_props.batch else filename)
         action.use_frame_range = True
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
@@ -140,25 +140,27 @@ class SMHFile():
     def serialize(
             self,
             export_props: SMHExportProperties,
-            armature: ArmatureObject,
-            metadata: SMHMetaData,
+            armatures: list[ArmatureObject],
             properties: SMHProperties) -> str:
         data = SMHFileBuilder(properties.map).build(type=export_props.smh_version)
 
         # TODO: Support multiple armatures as other entities
-        entity = SMHEntity(
-            armature=armature,
-            metadata=metadata,
-            properties=properties,
-            export_props=export_props
-        )
-
-        # Call their `bake_to_smh` functions and store their strings per entity
-        data["Entities"].append(
-            entity.bake_to_smh(
+        for armature in armatures:
+            props: SMHProperties = armature.smh_properties
+            metadata: SMHMetaData = armature.smh_metadata
+            entity = SMHEntity(
+                armature=armature,
+                metadata=metadata,
+                properties=props,
                 export_props=export_props
             )
-        )
+
+            # Call their `bake_to_smh` functions and store their strings per entity
+            data["Entities"].append(
+                entity.bake_to_smh(
+                    export_props=export_props
+                )
+            )
 
         return json.dumps(data, indent=4)
 
