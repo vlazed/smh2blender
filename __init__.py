@@ -176,11 +176,11 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
                 f.write(contents)
         except Exception as e:
             show_message(
-                f"An error as occurred during the process: {e}", "Error", 'ERROR')
+                f"SMH Exporter: An error as occurred during the process: {e}", "Error", 'ERROR')
             return {'CANCELLED'}
 
         show_message(
-            f"Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")
+            f"SMH Exporter: Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")
         return {'FINISHED'}
 
 

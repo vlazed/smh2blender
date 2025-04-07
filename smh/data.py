@@ -121,7 +121,7 @@ class SMHEntity():
         ]
         modifier_data = imp.load_modifiers(entity=entity)
 
-        action = bpy.data.actions.new(filename)
+        action = bpy.data.actions.new(f"{filename}_{armature.name}" if import_props.batch else filename)
         action.use_frame_range = True
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
