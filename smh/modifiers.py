@@ -30,14 +30,14 @@ class EyeTarget(bpy.types.PropertyGroup):
     EyeTarget: FloatVectorProperty(name="Eye Target", default=(180, 0, 0), options={'ANIMATABLE'})
 
 
-class BodygroupItem(bpy.types.PropertyGroup):
+class SMHBodygroupItem(bpy.types.PropertyGroup):
     name: StringProperty(name="Bodygroup")
     value: FloatProperty(options={'ANIMATABLE'}, default=0)
 
 
 class Bodygroup(bpy.types.PropertyGroup):
     value: CollectionProperty(
-        type=BodygroupItem
+        type=SMHBodygroupItem
     )
 
 
@@ -96,7 +96,7 @@ class SMHModifierPanel(bpy.types.Panel):
 
 
 def register_modifiers():
-    bpy.utils.register_class(BodygroupItem)
+    bpy.utils.register_class(SMHBodygroupItem)
     bpy.utils.register_class(FlexWeight)
 
     for name, cls in classes.items():
@@ -106,7 +106,7 @@ def register_modifiers():
 
 
 def unregister_modifiers():
-    bpy.utils.unregister_class(BodygroupItem)
+    bpy.utils.unregister_class(SMHBodygroupItem)
     bpy.utils.unregister_class(FlexWeight)
 
     for name, cls in classes.items():
