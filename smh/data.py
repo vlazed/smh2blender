@@ -63,7 +63,7 @@ class SMHEntity():
 
         exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
-        exporter.prepare_bones(bone_map=bone_map)
+        exporter.prepare_bones(bone_map=bone_map, physics_obj_map=physics_obj_map)
         exporter.prepare_modifiers()
         exporter.export(self.data, export_props=export_props)
 

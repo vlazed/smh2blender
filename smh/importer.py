@@ -62,11 +62,9 @@ class GenericBoneField:
         data: GenericBoneData,
         frame: float,
         angle_offset: Euler = Euler(),
-        angle_order: tuple[int, int, int] = (2, 0, 1),
-        angle_sign: tuple[int, int, int] = (1, 1, 1)
     ):
         self.pos = self._transform_vec(data["Pos"], sign=(1, 1, 1))
-        self.ang = self._transform_ang(data["Ang"], sign=angle_sign, angle_offset=angle_offset, angle_order=angle_order)
+        self.ang = self._transform_ang(data["Ang"], angle_offset=angle_offset)
         self.frame = frame
         self.armature = armature
         self.matrix = self.get_matrix(self.pos, self.ang)
@@ -89,11 +87,7 @@ class GenericBoneField:
         vec_list = [float(x) for x in vec[1:-1].split(" ")]
         return Vector((sign[0] * vec_list[0], sign[1] * vec_list[1], sign[2] * vec_list[2]))
 
-    def _transform_ang(
-            self, ang: str, angle_offset: Euler = Euler(),
-            angle_order: tuple[int, int, int] = (2, 0, 1),
-            sign=(1, 1, 1)
-    ) -> Euler:
+    def _transform_ang(self, ang: str, angle_offset: Euler = Euler()) -> Euler:
         """Transform an SMH angle into a Blender angle in local space.
 
         Args:
@@ -108,9 +102,9 @@ class GenericBoneField:
         ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
         return Euler(
             (
-                sign[0] * ang_list[angle_order[0]] + angle_offset.x,
-                sign[1] * ang_list[angle_order[1]] + angle_offset.y,
-                sign[2] * ang_list[angle_order[2]] + angle_offset.z
+                ang_list[2] + angle_offset.x,
+                ang_list[0] + angle_offset.y,
+                ang_list[1] + angle_offset.z
             )
         )
 
@@ -126,16 +120,12 @@ class PhysBoneField(GenericBoneField):
         data: PhysBoneData,
         frame: float,
         angle_offset: Euler,
-        angle_order: tuple[int, int, int] = (2, 0, 1),
-        angle_sign: tuple[int, int, int] = (1, 1, 1)
     ):
         super().__init__(
             armature=armature,
             data=data,
             frame=frame,
             angle_offset=angle_offset,
-            angle_order=angle_order,
-            angle_sign=angle_sign
         )
         self.local_pos = self.local_ang = self.local_matrix = None
         if data.get("LocalPos"):
@@ -240,10 +230,6 @@ class SMHImporter:
                     armature=armature, data=datum,
                     angle_offset=metadata.angle_offset() if is_ref else Euler(),
                     frame=frame["Position"],
-                    # FIXME: Figure out how to fix/workaround gimbal lock for physics props,
-                    # since this behavior seems to not happen with ragdolls
-                    angle_order=(0, 2, 1) if metadata.cls == 'prop_physics' else (2, 0, 1),
-                    angle_sign=(1, -1, -1) if metadata.cls == 'prop_physics' else (1, 1, 1)
                 ) for datum in frame["EntityData"]["physbones"].values()
             ]
             for frame in entity["Frames"] if dict(frame["EntityData"]).get("physbones")

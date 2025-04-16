@@ -246,7 +246,7 @@ class BoneFrame(Frame):
 
     def __init__(self, bone):
         super().__init__(bone)
-        self.scale = Vector()
+        self.scale = Vector((1, 1, 1))
 
     # manip_matrix is in local space
     def calculate(self, fcurves: ActionFCurves, frame: int):
@@ -307,7 +307,7 @@ class Frames:
         self.frame_range = frame_range
 
     @abstractmethod
-    def to_json(self, map: BoneMap | None): pass
+    def to_json(self, map: BoneMap | None, physics_map: BoneMap | None): pass
 
 
 class ModifierFrames(Frames):
@@ -396,7 +396,7 @@ class PhysBoneFrames(Frames):
 
 
 class BoneFrames(Frames):
-    def to_json(self, map: BoneMap):
+    def to_json(self, map: BoneMap, physics_map: BoneMap):
         data: dict[str, BoneData] = {}
         if not self.armature.animation_data.action:
             return data
@@ -405,16 +405,20 @@ class BoneFrames(Frames):
         if not fcurves:
             return data
 
+        physics_set = set(physics_map)
+
         for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
             data[str(frame)] = {}
 
             # Matrices with respect to rest pose
             for boneIndex, boneName in enumerate(map):
                 bone = self.armature.pose.bones.get(boneName)
+                # Prevent "doubling" on the physics movement
                 if bone:
                     frame_obj = BoneFrame(bone=bone)
-                    frame_obj.calculate(
-                        fcurves=fcurves, frame=frame)
+                    if boneName not in physics_set:
+                        frame_obj.calculate(
+                            fcurves=fcurves, frame=frame)
                     data[str(frame)][str(boneIndex)] = frame_obj.to_json()
 
         return data
@@ -483,9 +487,9 @@ class SMHExporter():
         self.physbone_frames = PhysBoneFrames(
             self.armature, self.frame_range).to_json(map=physics_obj_map)
 
-    def prepare_bones(self, bone_map: BoneMap):
+    def prepare_bones(self, bone_map: BoneMap, physics_obj_map: BoneMap):
         self.bone_frames = BoneFrames(
-            self.armature, self.frame_range).to_json(map=bone_map)
+            self.armature, self.frame_range).to_json(map=bone_map, physics_map=physics_obj_map)
 
     def prepare_modifiers(self):
         self.modifier_frames = ModifierFrames(

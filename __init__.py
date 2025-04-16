@@ -119,12 +119,16 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
 
         if not properties.name:
             show_message(
-                f"{armature.name}: Empty model name. Please give the model a descriptive name and try again", "Error", 'ERROR')
+                f"{armature.name}: Empty model name. Please give the model a descriptive name and try again",
+                "Error",
+                'ERROR')
             return False
 
         if not selected_metadata.savepath:
             show_message(
-                f"{armature.name}: Empty save path. Please supply a location to save the animation file and try again", "Error", 'ERROR')
+                f"{armature.name}: Empty save path. Please supply a location to save the animation file and try again",
+                "Error",
+                'ERROR')
             return False
 
         return True
@@ -215,13 +219,21 @@ class SMH_OT_SMHToBlender(bpy.types.Operator):
         passed, msg = check_smh_file(selected_metadata.loadpath, armature)
         if not passed:
             show_message(
-                *msg or (f"{armature.name}: No animation file supplied. Please supply one and try again", "Error", 'ERROR'))
+                *
+                msg or (
+                    f"{armature.name}: No animation file supplied. Please supply one and try again",
+                    "Error",
+                    'ERROR'))
             return False
 
         passed, msg = check_smh_file(metadata.ref_path, armature)
         if not passed:
             show_message(
-                *msg or (f"{armature.name}: No reference file supplied. Please supply one and try again", "Error", 'ERROR'))
+                *
+                msg or (
+                    f"{armature.name}: No reference file supplied. Please supply one and try again",
+                    "Error",
+                    'ERROR'))
             return False
 
         if not properties.model:
@@ -313,7 +325,6 @@ class SMH_OT_AddSMHPreset(AddPresetBase, bpy.types.Operator):
         'metadata.savepath',
         'metadata.loadpath',
         'metadata.name',
-        'metadata.cls',
         'metadata.ang_x',
         'metadata.ang_y',
         'metadata.ang_z',
@@ -359,7 +370,6 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box = layout.box()
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
         box.prop(metadata, "name")
-        box.prop(metadata, "cls")
         box.prop(metadata, "loadpath")
         box.prop(metadata, "import_stretch")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
