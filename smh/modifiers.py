@@ -16,6 +16,13 @@ class AdvancedCamera(bpy.types.PropertyGroup):
     Offset: FloatVectorProperty(name="Offset", default=(0, 0, 0), options={'ANIMATABLE'})
 
 
+class AdvancedLights(bpy.types.PropertyGroup):
+    Nearz: FloatProperty(name="NearZ", min=0, options={'ANIMATABLE'})
+    Farz: FloatProperty(name="FarZ", min=0, options={'ANIMATABLE'})
+    Brightness: FloatProperty(name="Brightness", min=0, options={'ANIMATABLE'})
+    Color: FloatVectorProperty(name="Color", default=(0, 0, 0), options={'ANIMATABLE'})
+
+
 class FlexWeight(bpy.types.PropertyGroup):
     name: StringProperty(name="Flex")
     value: FloatProperty(options={'ANIMATABLE'}, default=0)
@@ -66,7 +73,8 @@ classes = {
     "modelscale": ModelScale,
     # Doesn't work if "smh_color" -> "color".
     # I suspect some reserved properties in Blender, which is why this is called `smh_color` instead of `color`
-    "smh_color": Color
+    "smh_color": Color,
+    "advlights": AdvancedLights
 }
 
 
