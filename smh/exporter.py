@@ -410,7 +410,10 @@ class FlexFrames(Frames):
 
                 shape_key = shape_keys[flex_name]
                 fc = fcurves.find(shape_key.path_from_id('value'))
-                weights[index] = fc.evaluate(frame)
+                value = 0.0
+                if fc:
+                    value = fc.evaluate(frame)
+                weights[index] = value
 
             data[str(frame)] = FlexFrame(weights=weights, scale=1.0).to_json()
 
