@@ -26,7 +26,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 5, 1),
+    "version": (0, 6, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -119,12 +119,16 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
 
         if not properties.name:
             show_message(
-                f"{armature.name}: Empty model name. Please give the model a descriptive name and try again", "Error", 'ERROR')
+                f"{armature.name}: Empty model name. Please give the model a descriptive name and try again",
+                "Error",
+                'ERROR')
             return False
 
         if not selected_metadata.savepath:
             show_message(
-                f"{armature.name}: Empty save path. Please supply a location to save the animation file and try again", "Error", 'ERROR')
+                f"{armature.name}: Empty save path. Please supply a location to save the animation file and try again",
+                "Error",
+                'ERROR')
             return False
 
         return True
@@ -215,13 +219,21 @@ class SMH_OT_SMHToBlender(bpy.types.Operator):
         passed, msg = check_smh_file(selected_metadata.loadpath, armature)
         if not passed:
             show_message(
-                *msg or (f"{armature.name}: No animation file supplied. Please supply one and try again", "Error", 'ERROR'))
+                *
+                msg or (
+                    f"{armature.name}: No animation file supplied. Please supply one and try again",
+                    "Error",
+                    'ERROR'))
             return False
 
         passed, msg = check_smh_file(metadata.ref_path, armature)
         if not passed:
             show_message(
-                *msg or (f"{armature.name}: No reference file supplied. Please supply one and try again", "Error", 'ERROR'))
+                *
+                msg or (
+                    f"{armature.name}: No reference file supplied. Please supply one and try again",
+                    "Error",
+                    'ERROR'))
             return False
 
         if not properties.model:
@@ -347,6 +359,8 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(metadata, "physics_obj_path")
         box.prop(metadata, "ref_path")
         box.prop(metadata, "ref_name")
+        box.prop(metadata, "flex_path")
+        box.prop(metadata, "shapekey_object")
 
         box = layout.box()
         box.label(text="Export Settings", icon='TOOL_SETTINGS')
@@ -355,6 +369,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(properties, "name")
         box.prop(properties, "cls")
         box.prop(metadata, "savepath")
+        box.prop(metadata, "export_shapekeys_to_flex")
 
         box = layout.box()
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
@@ -362,6 +377,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(metadata, "cls")
         box.prop(metadata, "loadpath")
         box.prop(metadata, "import_stretch")
+        box.prop(metadata, "import_flex_to_shapekeys")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
         box.prop(metadata, "ang_x")
         box.prop(metadata, "ang_y")

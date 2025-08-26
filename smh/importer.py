@@ -13,6 +13,12 @@ from .exporter import PhysBoneTree
 from .props import SMHMetaData
 
 
+def transpose_list(l: list[list[Any]]) -> list[list[Any]]:
+    # "Tranpose" the list of lists, makes it easier to zip frames with samples together
+    # https://stackoverflow.com/questions/6473679/transpose-list-of-lists
+    return list(map(list, zip(*l)))
+
+
 def transform_modifier(data):
     if type(data) == dict:
         for key, val in data.items():
@@ -113,6 +119,19 @@ class GenericBoneField:
                 sign[2] * ang_list[angle_order[2]] + angle_offset.z
             )
         )
+
+
+class FlexField:
+    mesh: bpy.types.Mesh
+    weights: list[float]
+    scale: float
+    frame: float
+
+    def __init__(self, scale: float, weights: list[float], mesh: bpy.types.Mesh, frame: float):
+        self.weights = weights
+        self.scale = scale
+        self.frame = frame
+        self.mesh = mesh
 
 
 class PhysBoneField(GenericBoneField):
@@ -222,6 +241,7 @@ class BoneField(GenericBoneField):
 class SMHImporter:
     physics_obj_map: BoneMap
     bone_map: BoneMap
+    flex_map: BoneMap | None
     action: bpy.types.Action
     physics_tree: PhysBoneTree
     armature: ArmatureObject
@@ -263,11 +283,23 @@ class SMHImporter:
         ]
 
     @staticmethod
-    def load_modifiers(entity: SMHEntityResult):
+    def load_flex(entity: SMHEntityResult, mesh):
+        return [
+            FlexField(
+                mesh=mesh,
+                weights=frame["EntityData"]["flex"]["Weights"].values(),
+                scale=frame["EntityData"]["flex"]["Scale"],
+                frame=frame["Position"],
+            )
+            for frame in entity["Frames"] if dict(frame["EntityData"]).get("flex")
+        ]
+
+    @staticmethod
+    def load_modifiers(entity: SMHEntityResult, can_import_flex: bool):
         flat_list = [
             ModifierField(data=datum, name=name, frame=frame["Position"])
             for frame in entity["Frames"] if dict(frame["EntityData"]) for name, datum in frame["EntityData"].items()
-            if name != "bones" and name != "physbones"
+            if name != "bones" and name != "physbones" and not (can_import_flex and name == 'flex')
         ]
 
         group: dict[str, list[Any]] = {}
@@ -318,10 +350,12 @@ class SMHImporter:
             bone_map: BoneMap,
             armature: ArmatureObject,
             action: bpy.types.Action,
-            entity: SMHEntityResult
+            entity: SMHEntityResult,
+            flex_map: BoneMap | None,
     ):
         self.physics_obj_map = physics_obj_map
         self.bone_map = bone_map
+        self.flex_map = flex_map
         self.action = action
 
         self.armature = armature
@@ -419,6 +453,10 @@ class SMHImporter:
             if not attr:
                 continue
 
+            # Do not import flex as a modifier if we want to import it to the shapekeys
+            if name == 'flex' and metadata.import_flex_to_shapekeys:
+                continue
+
             props = [prop for prop in attr.bl_rna.properties if prop.is_runtime]
             frames = [m.frame for m in mod_list]
             for prop in props:
@@ -441,11 +479,34 @@ class SMHImporter:
 
                 # Convert each value in samples to a list, so we end up with a list of lists
                 samples = [[sample] if type(sample) != list else sample for sample in samples]
-                # "Tranpose" the list of lists, makes it easier to zip frames with samples together
-                # https://stackoverflow.com/questions/6473679/transpose-list-of-lists
-                samples = list(map(list, zip(*samples)))
+                samples = transpose_list(samples)
                 data_path = f'{name}.{prop.identifier}'
                 self.fcurves_from_modifier(frames=frames, samples=samples, data_path=data_path, name=name)
+
+    def import_flex(
+        self,
+        flex_data: list[FlexField],
+        metadata: SMHMetaData
+    ):
+        shapekey_object: bpy.types.Mesh = metadata.shapekey_object
+        frames = [sample.frame for sample in flex_data]
+        # Get a list of flex weights, scaled by the flex scale
+        flex_samples = [[float(weight) * float(sample.scale) for weight in sample.weights] for sample in flex_data]
+        flex_samples = transpose_list(flex_samples)
+
+        for index, flex_name in enumerate(self.flex_map):
+            shapekey: bpy.types.ShapeKey | None = shapekey_object.shape_keys.key_blocks.get(flex_name)
+            if not shapekey:
+                continue
+
+            samples = flex_samples[index]
+            data_path = shapekey.path_from_id('value')
+            self.create_fc(
+                data_path=data_path,
+                group_name=flex_name,
+                frames=frames,
+                samples=samples
+            )
 
     def import_physics(
         self,

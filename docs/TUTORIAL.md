@@ -1,11 +1,21 @@
 # Tutorials
 
+- [Tutorials](#tutorials)
+  - [Requirements](#requirements)
+  - [Configuration Walkthrough](#configuration-walkthrough)
+  - [Obtaining maps](#obtaining-maps)
+  - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
+    - [Exporting Shapekeys](#exporting-shapekeys)
+  - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
+    - [Importing Shapekeys](#importing-shapekeys)
+  - [Batch Importing/Exporting](#batch-importingexporting)
+
 > [!IMPORTANT]
 > For some of these tutorials, knowledge on decompiling models with Crowbar is required. Learn how to decompile models and import them into Blender before proceeding to the following tutorials.
 
 ## Requirements
 
-- [Script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone maps
+- [Script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone **maps**
 - Blender 2.8 and up
 - Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
 
@@ -75,6 +85,19 @@ Click `OK`, and one should expect the following message.
 
 Notice that the name of the file is the name of the action.
 
+### Exporting Shapekeys
+
+![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.png)
+
+Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Export shapekeys to flexes` before exporting
+
+There are a few quirks to learn about when exporting shapekeys to flexes:
+
+- To guarantee a close to one-to-one shapekey animation between GMod and Blender, you must satisfy the following:
+  - Have the same shapekeys (flexes) and faceposing values (flex controllers) in your mesh, case sensitive;
+  - Flex equations (e.g. %CloseLidLoL = (min(max((eyes_updown - -45) / (45 - -45), 0), 1))) must be linear to a single variable (e.g. %AH = AH. The earlier example does not count because of the min/max functions)
+- If flex modifier from a previous session has been used, and one attempts to export both shapekey animations and flex modifier data, shapekey animations will always override them.
+
 ## Stop Motion Helper to Blender
 
 > [!NOTE]
@@ -113,6 +136,12 @@ If everything has been set up correctly, the following message should be display
 ![blender-to-smh-load-success](/media//blender-to-smh-load-success.png)
 
 Play back the animation to ensure everything is in place. If necessary, export the animation into SMH, and then reimport the animation back into Blender. After these checks, the animator can begin to use Blender's extensive animation tooling to polish up or even author their animations.
+
+### Importing Shapekeys
+
+Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Import shapekeys to flexes` before importing.
+
+See [Exporting Shapekeys](#exporting-shapekeys) for more info on the quirks. In addition, importing may incur animation data loss if the shapekey does not exist for the character. This can occur if the qc file uses flexpairs, or if one makes the flexes using HWM or FACS.
 
 ## Batch Importing/Exporting
 
