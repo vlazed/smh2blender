@@ -22,10 +22,16 @@ class ModifierData(TypedDict):
     pass
 
 
+class FlexData(TypedDict):
+    Weights: list[float]
+    Scale: float
+
+
 class SMHEntityDataDict(TypedDict):
     bones: dict[str, BoneData]
     physbones: dict[str, PhysBoneData]
     position: GenericBoneData
+    flex: FlexData
 
 
 class SMHFrameBase(TypedDict):

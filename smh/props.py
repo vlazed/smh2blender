@@ -132,6 +132,11 @@ class SMHMetaData(bpy.types.PropertyGroup):
         description="An SMH animation file of the model in reference pose. This is mainly used to pose the model from the physical bones.",
         default="",
         subtype='FILE_PATH')
+    flex_path: StringProperty(
+        name="Flex map",
+        description="A list of flex controller names, ordered according to the sequence they were defined in their qc file. It maps the indices from the weight to a name, allowing Blender to choose which shapekey to assign the weight",
+        default="",
+        subtype='FILE_PATH')
     savepath: StringProperty(
         name="Save path",
         description="Choose where to save animation file",

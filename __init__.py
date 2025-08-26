@@ -359,6 +359,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(metadata, "physics_obj_path")
         box.prop(metadata, "ref_path")
         box.prop(metadata, "ref_name")
+        box.prop(metadata, "flex_path")
         box.prop(metadata, "shapekey_object")
 
         box = layout.box()
@@ -368,6 +369,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(properties, "name")
         box.prop(properties, "cls")
         box.prop(metadata, "savepath")
+        box.prop(metadata, "export_shapekeys_to_flex")
 
         box = layout.box()
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
