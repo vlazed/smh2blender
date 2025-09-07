@@ -534,6 +534,8 @@ class SMHExporter():
         self.armature = armature
         self.action = action
 
+        self.flex_frames = None
+
     def prepare_physics(self, physics_obj_map: BoneMap):
         self.physbone_frames = PhysBoneFrames(
             self.armature, self.frame_range).to_json(map=physics_obj_map)
