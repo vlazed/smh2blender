@@ -2,7 +2,7 @@ import bpy
 
 from mathutils import Vector, Euler, Matrix
 from typing import Generator, Any
-from math import radians
+from math import radians, tan
 
 from .types.frame import GenericBoneData, PhysBoneData, BoneData
 from .types.shared import ArmatureObject, BoneMap, SMHFileType, CameraObject
@@ -445,38 +445,6 @@ class SMHImporter:
 
         return pos, ang, frames
 
-    @staticmethod
-    def get_camera_pose(
-        data: list[list[PhysBoneField | BoneField]], index: int,
-        camera: CameraObject, local_condition: bool = False
-    ):
-        matrices: list[Matrix] = None
-        if local_condition:
-            matrices = [row[index].local_matrix for row in data]
-        else:
-            matrices = [row[index].matrix for row in data]
-
-        frames = [row[index].frame for row in data]
-
-        pos = [
-            (matrix.translation.x for matrix in matrices),
-            (matrix.translation.y for matrix in matrices),
-            (matrix.translation.z for matrix in matrices)
-        ]
-
-        ang = [
-            (matrix.to_quaternion().w for matrix in matrices),
-            (matrix.to_quaternion().x for matrix in matrices),
-            (matrix.to_quaternion().y for matrix in matrices),
-            (matrix.to_quaternion().z for matrix in matrices),
-        ] if camera.rotation_mode == 'QUATERNION' else [
-            (matrix.to_euler().x for matrix in matrices),
-            (matrix.to_euler().y for matrix in matrices),
-            (matrix.to_euler().z for matrix in matrices),
-        ]
-
-        return pos, ang, frames
-
     def fcurves_from_pose(
         self,
         pos: list[Generator[float, None, None]],
@@ -603,7 +571,9 @@ class SMHImporter:
                 samples=samples
             )
 
-    def import_camera(self, physbone_data: list[list[PhysBoneField]], metadata: SMHMetaData):
+    def import_camera(self,
+                      physbone_data: list[list[PhysBoneField]],
+                      cam_data: dict[str, list[ModifierField]] | None):
         for index, phys_name in enumerate(self.physics_obj_map):
             pos, ang, frames = self.get_pose(
                 data=physbone_data,
@@ -618,6 +588,21 @@ class SMHImporter:
                 name=phys_name,
                 camera=self.armature,
             )
+
+            # if cam_data and cam_data.get('advcamera'):
+            #     fov_data = cam_data['advcamera']
+            #     frames = [row.frame for row in fov_data]
+            #     camera = bpy.data.cameras[self.armature.name]
+            #     fov = [
+            #         (camera.sensor_width * 0.5) / tan(radians(row.data['FOV']) * 0.5) for row in fov_data
+            #     ]
+            #     data_path = camera.path_from_id('lens')
+            #     self.create_fc(
+            #         data_path=data_path,
+            #         group_name=camera.name,
+            #         frames=frames,
+            #         samples=fov
+            #     )
 
     def import_physics(
         self,
