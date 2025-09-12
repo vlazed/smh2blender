@@ -6,8 +6,10 @@
   - [Obtaining maps](#obtaining-maps)
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
     - [Exporting Shapekeys](#exporting-shapekeys)
+    - [Exporting Camera Animations](#exporting-camera-animations)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
     - [Importing Shapekeys](#importing-shapekeys)
+    - [Importing Camera Animations](#importing-camera-animations)
   - [Batch Importing/Exporting](#batch-importingexporting)
 
 > [!IMPORTANT]
@@ -98,6 +100,10 @@ There are a few quirks to learn about when exporting shapekeys to flexes:
   - Flex equations (e.g. %CloseLidLoL = (min(max((eyes_updown - -45) / (45 - -45), 0), 1))) must be linear to a single variable (e.g. %AH = AH. The earlier example does not count because of the min/max functions)
 - If flex modifier from a previous session has been used, and one attempts to export both shapekey animations and flex modifier data, shapekey animations will always override them.
 
+### Exporting Camera Animations
+
+TODO
+
 ## Stop Motion Helper to Blender
 
 > [!NOTE]
@@ -142,6 +148,10 @@ Play back the animation to ensure everything is in place. If necessary, export t
 Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Import shapekeys to flexes` before importing.
 
 See [Exporting Shapekeys](#exporting-shapekeys) for more info on the quirks. In addition, importing may incur animation data loss if the shapekey does not exist for the character. This can occur if the qc file uses flexpairs, or if one makes the flexes using HWM or FACS.
+
+### Importing Camera Animations
+
+TODO
 
 ## Batch Importing/Exporting
 
