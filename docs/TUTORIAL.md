@@ -87,7 +87,7 @@ Notice that the name of the file is the name of the action.
 
 ### Exporting Shapekeys
 
-![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.png)
+![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.PNG)
 
 Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Export shapekeys to flexes` before exporting
 
