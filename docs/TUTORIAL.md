@@ -167,7 +167,7 @@ Given a `prop_physics` or `prop_effect` entity in GMod, if you import its model 
 
 After determining the correct amount of angle offset to apply when importing (I applied 180 degrees of rotation on the z-axis), the fridge's rotation will still not match. See the following table, which shows two videos of a fridge rotation in GMod and Blender.
 
-![fridge-comparison](https://github.com/user-attachments/assets/1a017ff2-faa2-433b-8d50-45f2b5744845)
+https://github.com/user-attachments/assets/1a017ff2-faa2-433b-8d50-45f2b5744845
 
 This situation is unavoidable, because GMod's built-in/mounted content and workshop content are modeled in different 3D modeling softwares.
 
@@ -185,7 +185,7 @@ For a model with a single bone (or multiple root bones), you can rotate the mode
 
 You can safely re-export this back into GMod. The following shows what happens when you correct the orientation in Blender.
 
-![fridge-fix](https://github.com/user-attachments/assets/93c95edf-3ba0-43bb-a676-07d2ddea4942)
+https://github.com/user-attachments/assets/93c95edf-3ba0-43bb-a676-07d2ddea4942
 
 ### Multiple Bones
 
