@@ -26,7 +26,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 6, 0),
+    "version": (0, 7, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -370,10 +370,8 @@ class SMH_OT_AddSMHPreset(AddPresetBase, bpy.types.Operator):
         'metadata.savepath',
         'metadata.loadpath',
         'metadata.name',
-        'metadata.cls',
-        'metadata.ang_x',
-        'metadata.ang_y',
-        'metadata.ang_z',
+        'metadata.import_ang',
+        'metadata.export_ang',
         'metadata.import_stretch',
     ]
 
@@ -416,18 +414,19 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(properties, "cls")
         box.prop(metadata, "savepath")
         box.prop(metadata, "export_shapekeys_to_flex")
+        box.label(text="Position Offset", icon='EMPTY_ARROWS')
+        box.prop(metadata, "export_pos")
+        box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+        box.prop(metadata, "export_ang")
 
         box = layout.box()
         box.label(text="Import Settings", icon='TOOL_SETTINGS')
         box.prop(metadata, "name")
-        box.prop(metadata, "cls")
         box.prop(metadata, "loadpath")
         box.prop(metadata, "import_stretch")
         box.prop(metadata, "import_flex_to_shapekeys")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
-        box.prop(metadata, "ang_x")
-        box.prop(metadata, "ang_y")
-        box.prop(metadata, "ang_z")
+        box.prop(metadata, "import_ang")
 
         row = layout.row()
         smh2blender = row.operator('smh.smh2blender')

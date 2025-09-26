@@ -36,7 +36,7 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 ### Remarks
 
 1. *Bone mappings* are required because for a model with a similar skeletal structure, not all bones have a surjective mapping.
-   - Some bones in Blender do not exist in Source Engine, or vice versa. This is due to the modeller's intent to allow certain bones via the `$definebone` `.qc` command. I intend that animators use this addon for animations in Garry's Mod (with some compatibility for workflows involving SMH animations into Blender); hence, the Source Engine (GMod) model acts as the source of truth for bone structures and collision models.
+   - Some bones in Blender do not exist in Source Engine, or vice versa. This is due to the modeller's intent to allow certain bones via the `$definebone` `.qc` command. I intend that animators use this addon for animations in Garry's Mod (with some compatibility for workflows involving SMH animations into Blender); hence, for bone structures and collision models, the Source Engine (GMod) model acts as the source of truth.
 
 2. Similarly, *collision model (or physics object) mappings* are required because in Stop Motion Helper, animations are performed on ragdolls.
    - GMod distinguishes collision (physical) bones (e.g. head, arms, legs) and regular (nonphysical) bones (fingers, toes, helmets) for ragdolls. Blender lacks this knowledge since it treats all (pose) bones in an armature the same; thus, we must supply that information to allow Blender to distinguish between motions with physical bones and motions with nonphysical bones.

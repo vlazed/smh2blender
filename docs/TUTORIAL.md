@@ -11,6 +11,10 @@
     - [Importing Shapekeys](#importing-shapekeys)
     - [Importing Camera Animations](#importing-camera-animations)
   - [Batch Importing/Exporting](#batch-importingexporting)
+  - [Fixing Imported Orientations](#fixing-imported-orientations)
+    - [Single Bone (Edit Mode)](#single-bone-edit-mode)
+    - [Multiple Bones](#multiple-bones)
+  - [Fixing Exported Orientations](#fixing-exported-orientations)
 
 > [!IMPORTANT]
 > For some of these tutorials, knowledge on decompiling models with Crowbar is required. Learn how to decompile models and import them into Blender before proceeding to the following tutorials.
@@ -89,7 +93,7 @@ Notice that the name of the file is the name of the action.
 
 ### Exporting Shapekeys
 
-![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.png)
+![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.PNG)
 
 Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Export shapekeys to flexes` before exporting
 
@@ -162,3 +166,51 @@ To ensure a batch import/export is successful, the requirements for importing/ex
 When importing into multiple armatures, the armature will have an action named in the following manner: `{smh_filename}_{armature.name}`, where `smh_filename` is the name of the animation file for the selected armature, and `armature.name` is the name of the armature (not the name defined in the Import/Export Settings).
 
 Note that the importing and exporting properties (such as the SMH version, frame step, etc.) will act upon all armatures.
+
+## Fixing Imported Orientations
+
+Given a `prop_physics` or `prop_effect` entity in GMod, if you import its model into Blender, its orientation will differ. As a case study, observe the following table, which shows the orientation of the `furniturefridge001a.mdl` in GMod and Blender, at the origin of the `gm_construct` map.
+
+|Blender Fridge|GMod Fridge|
+|:--:|:--:|
+|![fridge-blender](/media/fridge-blender.png)|![fridge-gmod](/media/fridge-gmod.png)|
+
+After determining the correct amount of angle offset to apply when importing (I applied 180 degrees of rotation on the z-axis), the fridge's rotation will still not match. See the following table, which shows two videos of a fridge rotation in GMod and Blender.
+
+https://github.com/user-attachments/assets/1a017ff2-faa2-433b-8d50-45f2b5744845
+
+This situation is unavoidable, because GMod's built-in/mounted content and workshop content are modeled in different 3D modeling softwares.
+
+There are a couple of ways to work around this.
+
+### Single Bone (Edit Mode)
+
+For a model with a single bone (or multiple root bones), you can rotate the model in Edit Mode until it matches its orientation as seen in GMod. This can be done through the following steps:
+
+1. Enter Edit Mode
+2. Set the `Transform Pivot Point` to `3D Cursor`
+3. Hit `Shift+S` and select `Cursor to World Origin` to move the 3D Cursor (alternatively, the cursor can be set to another root bones origin)
+4. Select all vertices and
+5. Rotate it until it matches the orientation in GMod
+
+You can safely re-export this back into GMod. The following shows what happens when you correct the orientation in Blender.
+
+https://github.com/user-attachments/assets/93c95edf-3ba0-43bb-a676-07d2ddea4942
+
+### Multiple Bones
+
+As mentioned earlier, this does not work with a model with a bone hierarchy (a bone with child bones). The following may be useful:
+
+- Convert the physics prop or effect prop into a ragdoll.
+  - Ragdolls do not suffer from wrong orientations. If the prop has more joints, its orientation is likely to match that seen in GMod
+- Re-compile the model back into GMod, and ensure that the orientation in GMod matches the orientation in Blender
+  - Note in the beginning that the orientation of a prop tends to not match its `idle` sequence. Thus, the `idle` sequence needs to match
+  - Avoid using `$definebone`s or `$upaxis`
+
+## Fixing Exported Orientations
+
+Similar to imported orientations, orientations in GMod may not match orientations in Blender. Version 0.7.0 adds the following features to the export settings to solve this problem.
+
+![blender-to-smh-offsets](/media//blender-to-smh-offsets.png)
+
+These sliders give the user more control over the transform of the animation in GMod. To determine the necessary corrections, the user must use some GMod tools to figure it out. For example, use the [Overhauled Bone Tool](https://steamcommunity.com/sharedfiles/filedetails/?id=2896011208).

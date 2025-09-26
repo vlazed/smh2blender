@@ -60,7 +60,11 @@ class SMHEntity():
 
         exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
-        exporter.prepare_bones(bone_map=bone_map)
+        exporter.prepare_bones(
+            bone_map=bone_map,
+            physics_obj_map=physics_obj_map,
+            angle_offset=self.metadata.export_angle_offset(),
+            pos_offset=self.metadata.export_pos_offset())
         exporter.prepare_modifiers()
         if self.metadata.export_shapekeys_to_flex and self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
