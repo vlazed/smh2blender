@@ -396,7 +396,7 @@ class PhysBoneFrames(Frames):
 
 
 class BoneFrames(Frames):
-    def to_json(self, map: BoneMap, physics_map: BoneMap):
+    def to_json(self, map: BoneMap, physics_map: BoneMap, angle_offset: Euler, pos_offset: Vector):
         data: dict[str, BoneData] = {}
         if not self.armature.animation_data.action:
             return data
@@ -419,6 +419,11 @@ class BoneFrames(Frames):
                     if boneName not in physics_set:
                         frame_obj.calculate(
                             fcurves=fcurves, frame=frame)
+                    # Check for root physics bones: physics bones without parents
+                    if boneName in physics_set and bone.parent is None:
+                        # Angles are rearranged in to_json() function, so we have to rearrange them here
+                        frame_obj.ang = Euler((angle_offset.z, angle_offset.x, angle_offset.y))
+                        frame_obj.pos = pos_offset
                     data[str(frame)][str(boneIndex)] = frame_obj.to_json()
 
         return data
@@ -487,9 +492,21 @@ class SMHExporter():
         self.physbone_frames = PhysBoneFrames(
             self.armature, self.frame_range).to_json(map=physics_obj_map)
 
-    def prepare_bones(self, bone_map: BoneMap, physics_obj_map: BoneMap):
+    def prepare_bones(
+            self,
+            bone_map: BoneMap,
+            physics_obj_map: BoneMap,
+            angle_offset: Euler = Euler(),
+            pos_offset: Vector = Vector()):
         self.bone_frames = BoneFrames(
-            self.armature, self.frame_range).to_json(map=bone_map, physics_map=physics_obj_map)
+            self.armature,
+            self.frame_range
+        ).to_json(
+            map=bone_map,
+            physics_map=physics_obj_map,
+            angle_offset=angle_offset,
+            pos_offset=pos_offset
+        )
 
     def prepare_modifiers(self):
         self.modifier_frames = ModifierFrames(

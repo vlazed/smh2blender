@@ -1,7 +1,7 @@
 import bpy
 
-from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, IntProperty
-from mathutils import Euler
+from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, IntProperty, FloatVectorProperty
+from mathutils import Euler, Vector
 
 from math import radians
 from os.path import basename
@@ -153,25 +153,20 @@ class SMHMetaData(bpy.types.PropertyGroup):
         description="The name of the model to fetch from the reference file.",
     )
     cls: SMHClass()
-    ang_x: FloatProperty(
-        name="X",
-        min=-180,
-        max=180,
-    )
-    ang_y: FloatProperty(
-        name="Y",
-        min=-180,
-        max=180
-    )
-    ang_z: FloatProperty(
-        name="Z",
-        min=-180,
-        max=180
-    )
+    import_ang: FloatVectorProperty(name="", min=-180, max=180, size=3, subtype='XYZ')
+    export_ang: FloatVectorProperty(name="", min=-180, max=180, size=3, subtype='XYZ')
+    export_pos: FloatVectorProperty(name="", min=-128, max=128, size=3, subtype='XYZ')
+
     import_stretch: BoolProperty(
         name="Import stretching",
         description="If checked, SMH animations that move the physics bones of the model will be reflected on the Blender armature."
     )
 
-    def angle_offset(self):
-        return Euler((radians(self.ang_x), radians(self.ang_y), radians(self.ang_z)))
+    def import_angle_offset(self):
+        return Euler((radians(self.import_ang[0]), radians(self.import_ang[1]), radians(self.import_ang[2])))
+
+    def export_angle_offset(self):
+        return Euler((radians(self.export_ang[0]), radians(self.export_ang[1]), radians(self.export_ang[2])))
+
+    def export_pos_offset(self):
+        return Vector((self.export_pos[0], self.export_pos[1], self.export_pos[2]))

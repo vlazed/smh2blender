@@ -100,13 +100,12 @@ class GenericBoneField:
         # Gotcha: Blender uses radians to represent its Euler angles. Convert to this
         # Switch YZX (120) -> XYZ (012)
         ang_list = [radians(float(x)) for x in ang[1:-1].split(" ")]
-        return Euler(
-            (
-                ang_list[2] + angle_offset.x,
-                ang_list[0] + angle_offset.y,
-                ang_list[1] + angle_offset.z
-            )
-        )
+        angle = Euler((ang_list[2], ang_list[0], ang_list[1])).to_matrix()
+        rot_x = Euler((angle_offset.x, 0, 0)).to_matrix()
+        rot_y = Euler((0, angle_offset.y, 0)).to_matrix()
+        rot_z = Euler((0, 0, angle_offset.z)).to_matrix()
+        angle = angle @ rot_z @ rot_y @ rot_x
+        return angle.to_euler()
 
 
 class PhysBoneField(GenericBoneField):
@@ -228,7 +227,7 @@ class SMHImporter:
             [
                 PhysBoneField(
                     armature=armature, data=datum,
-                    angle_offset=metadata.angle_offset() if is_ref else Euler(),
+                    angle_offset=metadata.import_angle_offset() if is_ref else Euler(),
                     frame=frame["Position"],
                 ) for datum in frame["EntityData"]["physbones"].values()
             ]
