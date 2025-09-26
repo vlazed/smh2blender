@@ -6,7 +6,7 @@ from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
 
-from .types.frame import BoneData, PhysBoneData, ModifierData, SMHFrameResult, SMHFrameBuilder
+from .types.frame import BoneData, PhysBoneData, ModifierData, FlexData, SMHFrameResult, SMHFrameBuilder
 from .types.shared import BoneMap, ArmatureObject, SMHFileType
 from .types.entity import SMHEntityResult
 
@@ -267,6 +267,23 @@ class BoneFrame(Frame):
         }
 
 
+class FlexFrame:
+    scale: float
+    weights: list[float]
+
+    def __init__(self, scale: float, weights: list[float]):
+        self.scale = scale
+        self.weights = weights
+
+    def to_json(self) -> FlexData:
+        data: FlexData = {
+            "Scale": self.scale,
+            "Weights": self.weights,
+        }
+
+        return data
+
+
 class PhysBoneFrame(Frame):
     local_pos: Vector | None
     local_ang: Euler | None
@@ -371,6 +388,38 @@ class ModifierFrames(Frames):
         return data
 
 
+class FlexFrames(Frames):
+    shapekey_object: bpy.types.Mesh
+
+    def __init__(self, armature: Armature | Object, frame_range: list[float], shapekey_object: bpy.types.Mesh):
+        super().__init__(armature, frame_range)
+        self.shapekey_object = shapekey_object
+
+    def to_json(self, map: BoneMap):
+        data: FlexData = {}
+
+        shape_keys = self.shapekey_object.shape_keys.key_blocks
+        fcurves = self.shapekey_object.shape_keys.animation_data.action.fcurves  # type: ignore
+
+        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
+            weights = {}
+            for index, flex_name in enumerate(map):
+                if not shape_keys.get(flex_name):
+                    weights[index] = 0.0
+                    continue
+
+                shape_key = shape_keys[flex_name]
+                fc = fcurves.find(shape_key.path_from_id('value'))
+                value = 0.0
+                if fc:
+                    value = fc.evaluate(frame)
+                weights[index] = value
+
+            data[str(frame)] = FlexFrame(weights=weights, scale=1.0).to_json()
+
+        return data
+
+
 class PhysBoneFrames(Frames):
     def to_json(self, map: BoneMap):
         data: dict[str, PhysBoneData] = {}
@@ -457,6 +506,11 @@ class SMHFrameData():
             if self.type == '3':
                 self.builder.add_description('Modifier', name)
 
+    def bake_flexes(self, flex):
+        self.builder.add_data("flex", flex)
+        if self.type == '3':
+            self.builder.add_description('Modifier', "physbones")
+
     def build(self):
         self.data = self.builder.build(type=self.type)
 
@@ -477,6 +531,7 @@ class SMHExporter():
     bone_frames: dict[str, dict[str, BoneData]]
     physbone_frames: dict[str, dict[str, PhysBoneData]]
     modifier_frames: dict[str, dict[str, ModifierData]]
+    flex_frames: dict[str, dict[str, FlexData]] | None
 
     def __init__(self, action: bpy.types.Action, armature: ArmatureObject, frame_step: int, use_scene_range: bool):
         scene = bpy.context.scene
@@ -487,6 +542,8 @@ class SMHExporter():
         )
         self.armature = armature
         self.action = action
+
+        self.flex_frames = None
 
     def prepare_physics(self, physics_obj_map: BoneMap):
         self.physbone_frames = PhysBoneFrames(
@@ -507,6 +564,12 @@ class SMHExporter():
             angle_offset=angle_offset,
             pos_offset=pos_offset
         )
+
+    def prepare_flexes(self, shapekey_object: bpy.types.Mesh, flex_map: BoneMap):
+        self.flex_frames = FlexFrames(
+            armature=self.armature,
+            shapekey_object=shapekey_object,
+            frame_range=self.frame_range).to_json(map=flex_map)
 
     def prepare_modifiers(self):
         self.modifier_frames = ModifierFrames(
@@ -542,6 +605,10 @@ class SMHExporter():
                 entity_frame.bake_physbones(physbones=self.physbone_frames[str(frame)])
                 entity_frame.bake_bones(bones=self.bone_frames[str(frame)])
                 entity_frame.bake_modifiers(modifiers=self.modifier_frames[str(frame)])
+                # This will override the modifier data
+                # TODO: Make it only override values that it has data for
+                if self.flex_frames:
+                    entity_frame.bake_flexes(flex=self.flex_frames[str(frame)])
                 entity_frame.build()
 
                 data["Frames"].append(entity_frame.data)

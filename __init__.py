@@ -26,7 +26,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 5, 1),
+    "version": (0, 6, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -357,6 +357,8 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(metadata, "physics_obj_path")
         box.prop(metadata, "ref_path")
         box.prop(metadata, "ref_name")
+        box.prop(metadata, "flex_path")
+        box.prop(metadata, "shapekey_object")
 
         box = layout.box()
         box.label(text="Export Settings", icon='TOOL_SETTINGS')
@@ -365,6 +367,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(properties, "name")
         box.prop(properties, "cls")
         box.prop(metadata, "savepath")
+        box.prop(metadata, "export_shapekeys_to_flex")
         box.label(text="Position Offset", icon='EMPTY_ARROWS')
         box.prop(metadata, "export_pos")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
@@ -375,6 +378,7 @@ class SMH_PT_Menu(View3DPanel, bpy.types.Panel):
         box.prop(metadata, "name")
         box.prop(metadata, "loadpath")
         box.prop(metadata, "import_stretch")
+        box.prop(metadata, "import_flex_to_shapekeys")
         box.label(text="Angle Offset", icon='DRIVER_ROTATIONAL_DIFFERENCE')
         box.prop(metadata, "import_ang")
 

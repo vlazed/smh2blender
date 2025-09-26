@@ -1,6 +1,6 @@
 import bpy
 
-from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, IntProperty, FloatVectorProperty
+from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty, IntProperty, FloatVectorProperty, PointerProperty
 from mathutils import Euler, Vector
 
 from math import radians
@@ -132,6 +132,11 @@ class SMHMetaData(bpy.types.PropertyGroup):
         description="An SMH animation file of the model in reference pose. This is mainly used to pose the model from the physical bones.",
         default="",
         subtype='FILE_PATH')
+    flex_path: StringProperty(
+        name="Flex map",
+        description="A list of flex controller names, ordered according to the sequence they were defined in their qc file. It maps the indices from the weight to a name, allowing Blender to choose which shapekey to assign the weight",
+        default="",
+        subtype='FILE_PATH')
     savepath: StringProperty(
         name="Save path",
         description="Choose where to save animation file",
@@ -160,6 +165,19 @@ class SMHMetaData(bpy.types.PropertyGroup):
     import_stretch: BoolProperty(
         name="Import stretching",
         description="If checked, SMH animations that move the physics bones of the model will be reflected on the Blender armature."
+    )
+    shapekey_object: PointerProperty(
+        name="Shapekey object",
+        description="The object to import or export shapekey animations.",
+        type=bpy.types.Mesh
+    )
+    import_flex_to_shapekeys: BoolProperty(
+        name="Import flexes to shapekeys",
+        description="If checked, face flex animations will automatically be imported as keyframes to shapekeys. Note that the order of flexes in GMod must match the shapekeys in Blender"
+    )
+    export_shapekeys_to_flex: BoolProperty(
+        name="Export shapekeys to flexes",
+        description="If checked, shapekey animations will be exported to a face flex animation. Existing flexes from previous imports may be overridden"
     )
 
     def import_angle_offset(self):

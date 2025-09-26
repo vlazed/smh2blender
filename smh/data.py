@@ -60,6 +60,12 @@ class SMHEntity():
 
         physics_obj_map = load_map(bpy.path.abspath(self.metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(self.metadata.bone_path))
+        flex_map = None
+        if self.metadata.export_shapekeys_to_flex:
+            flex_map = load_map(bpy.path.abspath(self.metadata.flex_path))
+        elif self.metadata.shapekey_object:
+            shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
+            flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
 
         exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
@@ -69,6 +75,10 @@ class SMHEntity():
             angle_offset=self.metadata.export_angle_offset(),
             pos_offset=self.metadata.export_pos_offset())
         exporter.prepare_modifiers()
+        if self.metadata.export_shapekeys_to_flex and self.metadata.shapekey_object:
+            shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
+            if shapekey_object.shape_keys.animation_data.action and shapekey_object.shape_keys.animation_data.action.fcurves:
+                exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
         exporter.export(self.data, export_props=export_props)
 
         return self.data
@@ -123,18 +133,41 @@ class SMHEntity():
             ]
             for physbone_row in physbone_data
         ]
-        modifier_data = imp.load_modifiers(entity=entity)
+        flex_data = None
+        modifier_data = imp.load_modifiers(entity=entity, can_import_flex=metadata.import_flex_to_shapekeys)
+        if metadata.import_flex_to_shapekeys and metadata.shapekey_object:
+            flex_data = imp.load_flex(entity, mesh=metadata.shapekey_object)
 
         action = bpy.data.actions.new(f"{filename}_{armature.name}" if import_props.batch else filename)
         action.use_frame_range = True
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
+        flex_map = None
+        if metadata.import_flex_to_shapekeys:
+            flex_map = load_map(bpy.path.abspath(metadata.flex_path))
+        elif metadata.shapekey_object:
+            shapekey_object: bpy.types.Mesh = metadata.shapekey_object
+            flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
+
+        if metadata.shapekey_object:
+            shapekey_object: bpy.types.Mesh = metadata.shapekey_object
+            shapekey_object.shape_keys.animation_data_create()
+            shapekey_object.shape_keys.animation_data.action = action
+
         armature.animation_data_create()
         armature.animation_data.action = action
 
-        importer = imp(physics_obj_map, bone_map, armature, action, entity)
+        importer = imp(
+            physics_obj_map=physics_obj_map,
+            bone_map=bone_map,
+            armature=armature,
+            action=action,
+            entity=entity,
+            flex_map=flex_map)
         importer.import_bones(bone_data)
         importer.import_physics(physbone_data, metadata)
+        if flex_data:
+            importer.import_flex(flex_data, metadata)
         importer.import_modifiers(modifier_data, metadata=metadata)
 
         return True, f"Successfully loaded {filename}"
