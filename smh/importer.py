@@ -11,11 +11,7 @@ from .types.file import SMHFileResult
 
 from .exporter import PhysBoneTree
 from .props import SMHMetaData
-
-
-def version_has_slots():
-    version = bpy.app.version
-    return version[0] >= 4 and version[1] >= 4
+from .utility import version_has_slots
 
 
 def transpose_list(l: list[list[Any]]) -> list[list[Any]]:
