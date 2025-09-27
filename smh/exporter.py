@@ -347,10 +347,11 @@ class CameraFrame(Frame):
         self.camera = camera
 
     def get_lens_fcurve(self) -> bpy.types.FCurve | None:
-        # Check for keyframe data
         fc = None
+        # Check for keyframe data for the currently active action slot
         if version_has_slots() and len(self.camera.data.animation_data.action.layers) > 0:
-            fc = self.camera.data.animation_data.action.layers[0].strips[0].channelbags[1].fcurves.find('lens')
+            fc = self.camera.data.animation_data.action.layers[0].strips[0].channelbag(
+                self.camera.data.animation_data.action_slot).fcurves.find('lens')
         # Use imported data if it doesn't exist
         if not fc:
             fc = self.camera.animation_data.action.fcurves.find('data.lens')
