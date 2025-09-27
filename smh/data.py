@@ -208,12 +208,6 @@ class SMHEntity():
         armature.animation_data_create()
         armature.animation_data.action = action
 
-        # UNTESTED: Action slots compatibility
-        # version = bpy.app.version
-        # if version[0] >= 4 and version[1] >= 4:
-        #     armature.animation_data.action_slot = action.slots.new('OBJECT', armature.name)
-        #     armature.data.animation_data.action_slot = action.slots.new('CAMERA', armature.name)
-
         importer = imp(
             physics_obj_map=physics_obj_map,
             bone_map=bone_map,
@@ -222,7 +216,7 @@ class SMHEntity():
             entity=entity,
             flex_map=flex_map)
         importer.import_modifiers(modifier_data, metadata=metadata)
-        importer.import_camera(physbone_data, modifier_data if metadata.cls == 'hl_camera' else None)
+        importer.import_camera(physbone_data, modifier_data)
 
         return True, f"Successfully loaded {filename}"
 

@@ -13,6 +13,11 @@ from .exporter import PhysBoneTree
 from .props import SMHMetaData
 
 
+def version_has_slots():
+    version = bpy.app.version
+    return version[0] >= 4 and version[1] >= 4
+
+
 def transpose_list(l: list[list[Any]]) -> list[list[Any]]:
     # "Tranpose" the list of lists, makes it easier to zip frames with samples together
     # https://stackoverflow.com/questions/6473679/transpose-list-of-lists
@@ -208,16 +213,12 @@ class CameraField(GenericBoneField):
         data: PhysBoneData,
         frame: float,
         angle_offset: Euler,
-        angle_order: tuple[int, int, int] = (2, 0, 1),
-        angle_sign: tuple[int, int, int] = (1, 1, 1)
     ):
         super().__init__(
             armature=armature,
             data=data,
             frame=frame,
-            angle_offset=angle_offset,
-            angle_order=angle_order,
-            angle_sign=angle_sign
+            angle_offset=angle_offset
         )
         x_rot = Euler((radians(90), 0, 0)).to_matrix()
         z_rot = Euler((0, 0, radians(-90))).to_matrix()
@@ -260,6 +261,9 @@ class SMHImporter:
     armature: ArmatureObject
     interpolation: list
 
+    action_name: str
+    strip: None
+
     @staticmethod
     def load_physbones(
             entity: SMHEntityResult,
@@ -289,8 +293,6 @@ class SMHImporter:
                     armature=armature, data=datum,
                     angle_offset=Euler(),
                     frame=frame["Position"],
-                    angle_order=(2, 0, 1),
-                    angle_sign=(1, 1, 1)
                 ) for datum in frame["EntityData"]["physbones"].values()
             ]
             for frame in entity["Frames"] if dict(frame["EntityData"]).get("physbones")
@@ -362,8 +364,16 @@ class SMHImporter:
         num_frames = len(frames)
         interpolation = [
             bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value] * num_frames
-        fc: bpy.types.FCurve = self.action.fcurves.new(
-            data_path=data_path, index=index, action_group=group_name)
+
+        fc: bpy.types.FCurve = None
+        if version_has_slots():
+            channelbag = self.strip.channelbag(self.armature.animation_data.action_slot)
+            group = channelbag.groups.get(group_name, channelbag.groups.new(group_name))
+            fc = channelbag.fcurves.new(data_path=data_path, index=index)
+            fc.group = group
+        else:
+            fc = self.action.fcurves.new(data_path=data_path, index=index, action_group=group_name)
+
         fc.keyframe_points.add(num_frames)
         fc.keyframe_points.foreach_set(
             "co", [x for co in zip(frames, samples) for x in co])
@@ -394,6 +404,18 @@ class SMHImporter:
 
         action.frame_start = min(frames)
         action.frame_end = max(frames)
+
+        if version_has_slots():
+            action_name = armature.name
+            if entity.get("Properties") and entity["Properties"].get("Name"):
+                action_name = entity["Properties"]["Name"]
+
+            slot = action.slots.new('OBJECT', action_name)
+            armature.animation_data.action_slot = slot
+
+            layer = action.layers.new(action_name)
+            self.strip = layer.strips.new()
+            self.strip.channelbags.new(slot)
 
         bpy.context.scene.frame_start = int(action.frame_start)
         bpy.context.scene.frame_end = int(action.frame_end)
@@ -558,7 +580,7 @@ class SMHImporter:
 
     def import_camera(self,
                       physbone_data: list[list[PhysBoneField]],
-                      cam_data: dict[str, list[ModifierField]] | None):
+                      cam_data: dict[str, list[ModifierField]]):
         for index, phys_name in enumerate(self.physics_obj_map):
             pos, ang, frames = self.get_pose(
                 data=physbone_data,
@@ -574,20 +596,19 @@ class SMHImporter:
                 camera=self.armature,
             )
 
-            # if cam_data and cam_data.get('advcamera'):
-            #     fov_data = cam_data['advcamera']
-            #     frames = [row.frame for row in fov_data]
-            #     camera = bpy.data.cameras[self.armature.name]
-            #     fov = [
-            #         (camera.sensor_width * 0.5) / tan(radians(row.data['FOV']) * 0.5) for row in fov_data
-            #     ]
-            #     data_path = camera.path_from_id('lens')
-            #     self.create_fc(
-            #         data_path=data_path,
-            #         group_name=camera.name,
-            #         frames=frames,
-            #         samples=fov
-            #     )
+            if cam_data and cam_data.get('advcamera'):
+                fov_data = cam_data['advcamera']
+                frames = [row.frame for row in fov_data]
+                camera: bpy.types.Camera = self.armature.data
+                fov = [
+                    (camera.sensor_width * 0.5) / tan(radians(row.data['FOV']) * 0.5) for row in fov_data
+                ]
+                self.create_fc(
+                    data_path='data.lens',
+                    group_name=camera.name,
+                    frames=frames,
+                    samples=fov,
+                )
 
     def import_physics(
         self,

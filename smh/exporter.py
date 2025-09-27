@@ -1,7 +1,7 @@
 import bpy
 
 from bpy.types import Bone, PoseBone, ActionFCurves, Armature, Object, Camera
-from math import degrees, radians, floor
+from math import degrees, radians, floor, atan
 from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
@@ -399,6 +399,9 @@ class ModifierFrames(Frames):
                     data_path = f'{modifier}.{prop.identifier}'
                     if not fcurve_exists(self.armature, data_path):
                         continue
+                    # Override value
+                    if fcurve_exists(self.armature, 'data.lens') and prop.identifier == 'FOV':
+                        data_path = 'data.lens'
 
                     if prop.type == 'COLLECTION':
                         # If this is a CollectionProperty of size n, we want to store the value of each item in a dictionary:
@@ -425,8 +428,12 @@ class ModifierFrames(Frames):
                             data[str(frame)][mod_name] = get_modifier_frame_value(
                                 data_path=data_path, obj=self.armature, frame=frame)
                         else:
-                            data[str(frame)][mod_name][prop.identifier] = get_modifier_frame_value(
+                            value = get_modifier_frame_value(
                                 data_path=data_path, obj=self.armature, frame=frame)
+                            if data_path == 'data.lens':
+                                value = degrees(2 * atan(self.armature.data.sensor_width * 0.5 / value))
+                            data[str(frame)][mod_name][prop.identifier] = value
+
                 if type(data[str(frame)][mod_name]) == dict and len(data[str(frame)][mod_name]) == 0:
                     # No keyframes exists for the current modifier? Don't use it
                     del data[str(frame)][mod_name]
