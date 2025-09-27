@@ -51,7 +51,6 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
 
 ## Gotchas
 
-- Starting from Blender 4.4, actions are slotted. This can be confusing when importing SMH animations, compared to earlier versions of Blender. Make sure to select `Legacy Slot` to see the SMH animation.
 - This addon works the best when a majority of the ragdoll's bones have physics objects. More physics objects improve the accuracy of the animation between Blender and SMH. See this [GMod addon](https://steamcommunity.com/sharedfiles/filedetails/?id=3315493382) for an example that adds more physics objects to a group of ragdolls.
   - This is mostly an issue when nonphysical bones (bones without a physics object) have a physical bone as its descendant (such as `bip_spine_3` and `bip_head`)
 - Blender's Euler angles are susceptible to gimbal locks. This affects imported SMH animations (most noticeable when animating with IK), and animations re-exported from Blender will not result in the original animation.
@@ -60,7 +59,7 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
 
 ## Tutorials
 
-To learn how to use this addon, click [here](./docs/TUTORIAL.md).
+To learn how to use this addon, [click me](./docs/TUTORIAL.md).
 
 ## Pull Requests
 

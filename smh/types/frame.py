@@ -27,6 +27,14 @@ class FlexData(TypedDict):
     Scale: float
 
 
+class CameraData(TypedDict):
+    FOV: float
+    Roll: float
+    Nearz: float
+    Farz: float
+    Offset: list[float]
+
+
 class SMHEntityDataDict(TypedDict):
     bones: dict[str, BoneData]
     physbones: dict[str, PhysBoneData]

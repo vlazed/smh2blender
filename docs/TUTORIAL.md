@@ -6,8 +6,10 @@
   - [Obtaining maps](#obtaining-maps)
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
     - [Exporting Shapekeys](#exporting-shapekeys)
+    - [Exporting Camera Animations](#exporting-camera-animations)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
     - [Importing Shapekeys](#importing-shapekeys)
+    - [Importing Camera Animations](#importing-camera-animations)
   - [Batch Importing/Exporting](#batch-importingexporting)
   - [Fixing Imported Orientations](#fixing-imported-orientations)
     - [Single Bone (Edit Mode)](#single-bone-edit-mode)
@@ -102,6 +104,16 @@ There are a few quirks to learn about when exporting shapekeys to flexes:
   - Flex equations (e.g. %CloseLidLoL = (min(max((eyes_updown - -45) / (45 - -45), 0), 1))) must be linear to a single variable (e.g. %AH = AH. The earlier example does not count because of the min/max functions)
 - If flex modifier from a previous session has been used, and one attempts to export both shapekey animations and flex modifier data, shapekey animations will always override them.
 
+### Exporting Camera Animations
+
+Starting in version 0.8.0, you can export the animation of an Blender camera object to SMH. The steps to export the camera animation are the same as for an armature.
+
+Note that if there are keyframes to animate a camera's focal length, then these keyframes will always take precedence over any existing modifier keyframes (`advcamera.FOV`).
+
+The following video demonstrates exporting a Blender camera animation into GMod.
+
+https://github.com/user-attachments/assets/54c1e827-718c-4f2f-9b80-f7c03813a260
+
 ## Stop Motion Helper to Blender
 
 > [!NOTE]
@@ -146,6 +158,16 @@ Play back the animation to ensure everything is in place. If necessary, export t
 Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Import shapekeys to flexes` before importing.
 
 See [Exporting Shapekeys](#exporting-shapekeys) for more info on the quirks. In addition, importing may incur animation data loss if the shapekey does not exist for the character. This can occur if the qc file uses flexpairs, or if one makes the flexes using HWM or FACS.
+
+### Importing Camera Animations
+
+Starting in version 0.8.0, you can import SMH camera animations directly to the Blender camera object. The steps to import the camera animation into a camera object is the same as for an armature.
+
+If the SMH animation contains an [Advanced Camera](https://steamcommunity.com/sharedfiles/filedetails/?id=881605937) animation, then the field-of-view (FOV) parameter will automatically be transformed into focal length.
+
+The following video demonstrates the process of importing a camera animation into Blender and re-exporting it back.
+
+https://github.com/user-attachments/assets/f99333cc-2e2f-4b78-8a64-90351a40e485
 
 ## Batch Importing/Exporting
 

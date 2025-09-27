@@ -16,6 +16,8 @@ def SMHClass():
             ('prop_ragdoll', "Ragdoll", ""),
             ('prop_physics', "Prop", ""),
             ('prop_effect', "Effect", ""),
+            ('gmod_cameraprop', "Camera", ""),
+            ('hl_camera', "Advanced Camera", ""),
         ])
 
 
