@@ -26,7 +26,7 @@ bl_info = {
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
     "blender": (2, 80, 0),
-    "version": (0, 7, 0),
+    "version": (0, 8, 0),
     "location": "",
     "warning": "",
     "category": "Animation",

@@ -3,7 +3,7 @@ schema_version = "1.0.0"
 # Example of manifest file for a Blender extension
 # Change the values according to your extension
 id = "smh2blender"
-version = "0.7.0"
+version = "0.8.0"
 name = "SMH Importer/Exporter"
 tagline = "Exchange animations between Blender and Garry's Mod"
 maintainer = "vlazed"
