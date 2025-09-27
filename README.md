@@ -59,7 +59,7 @@ If you have found a bug, or you have a suggestion to improve this tool, please r
 
 ## Tutorials
 
-To learn how to use this addon, click [here](./docs/TUTORIAL.md).
+To learn how to use this addon, [click me](./docs/TUTORIAL.md).
 
 ## Pull Requests
 
