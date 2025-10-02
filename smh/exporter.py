@@ -185,6 +185,12 @@ class FrameEvaluator:
     def get_camera_focal_length(self, obj: CameraObject, frame: float) -> float:
         raise NotImplementedError()
 
+    def initialize_shapekey_range(self, obj: bpy.types.Mesh):
+        pass
+
+    def reset_shapekey_range(self, obj: bpy.types.Mesh):
+        pass
+
     def get_shapekey_value(self, obj: bpy.types.Mesh, frame: float, shapekey_name: str) -> float:
         raise NotImplementedError()
 
@@ -197,6 +203,7 @@ class FCurveEvaluator(FrameEvaluator):
         get_pose_matrices(obj, self.matrix_map, frame)
 
     def build_camera_matrix_map(self, obj: Object, frame: float):
+        self.matrix_map = {}
         get_camera_pose_matrices(obj, self.matrix_map, frame)
 
     def get_bone_matrix(self, obj: Object, frame: float, bone: Bone) -> Matrix | None:
@@ -211,7 +218,8 @@ class FCurveEvaluator(FrameEvaluator):
     def get_camera_focal_length(self, obj: CameraObject, frame: float) -> float | None:
         fc = None
         # Check for keyframe data for the currently active action slot
-        if version_has_slots() and len(obj.data.animation_data.action.layers) > 0:
+        if version_has_slots() and obj.data.animation_data and obj.data.animation_data.action and len(
+                obj.data.animation_data.action.layers) > 0:
             fc = obj.data.animation_data.action.layers[0].strips[0].channelbag(
                 obj.data.animation_data.action_slot).fcurves.find('lens')
         # Use imported data if it doesn't exist
@@ -221,7 +229,7 @@ class FCurveEvaluator(FrameEvaluator):
         if fc:
             return fc.evaluate(frame)
 
-        return 50.0
+        return obj.data.lens
 
     def get_shapekey_value(self, obj: bpy.types.Mesh, frame, shapekey_name):
         if not obj.shape_keys:
@@ -231,14 +239,23 @@ class FCurveEvaluator(FrameEvaluator):
         if not shape_key:
             return 0.0
 
-        fc = obj.shape_keys.animation_data.action.fcurves.find(shape_key.path_from_id('value'))
-        if fc:
-            return fc.evaluate(frame)
+        if version_has_slots() and obj.shape_keys.animation_data and obj.shape_keys.animation_data.action and len(
+                obj.shape_keys.animation_data.action.layers) > 0:
+            fc: bpy.types.FCurve = obj.shape_keys.animation_data.action.layers[0].strips[0].channelbag(
+                obj.shape_keys.animation_data.action_slot).fcurves.find(shape_key.path_from_id('value'))
+            if fc:
+                return fc.evaluate(frame)
+        elif obj.shape_keys.animation_data and obj.shape_keys.animation_data.action:
+            fc = obj.shape_keys.animation_data.action.fcurves.find(shape_key.path_from_id('value'))
+            if fc:
+                return fc.evaluate(frame)
 
         return 0.0
 
 
 class VisualKeyingEvaluator(FrameEvaluator):
+    old_shapekey_ranges: dict[str, tuple[float, float]]
+
     def __init__(self, frame: float):
         self.initial_frame = frame
 
@@ -262,6 +279,19 @@ class VisualKeyingEvaluator(FrameEvaluator):
     def get_camera_focal_length(self, obj, frame):
         return obj.data.lens
 
+    def initialize_shapekey_range(self, obj: bpy.types.Mesh):
+        self.old_shapekey_ranges = {}
+
+        for shapekey in obj.shape_keys.key_blocks:
+            self.old_shapekey_ranges[shapekey.name] = (shapekey.slider_min, shapekey.slider_max)
+            shapekey.slider_min = -1e9
+            shapekey.slider_max = 1e9
+
+    def reset_shapekey_range(self, obj: bpy.types.Mesh):
+        for shapekey in obj.shape_keys.key_blocks:
+            shapekey.slider_min = self.old_shapekey_ranges.get(shapekey.name, (0, 1))[0]
+            shapekey.slider_max = self.old_shapekey_ranges.get(shapekey.name, (0, 1))[1]
+
     def get_shapekey_value(self, obj: bpy.types.Mesh, frame, shapekey_name):
         if not obj.shape_keys:
             return 0.0
@@ -269,8 +299,9 @@ class VisualKeyingEvaluator(FrameEvaluator):
         shape_key = obj.shape_keys.key_blocks.get(shapekey_name)
         if not shape_key:
             return 0.0
+        value = shape_key.value
 
-        return shape_key.value
+        return value
 
 
 class PhysBoneTree:
@@ -583,6 +614,8 @@ class FlexFrames(Frames):
     def to_json(self, map: BoneMap, evaluator: FrameEvaluator):
         data: FlexData = {}
 
+        # Prepare shapekey ranges for visual keying because shapekey values are clamped in the range [0, 1]
+        evaluator.initialize_shapekey_range(self.shapekey_object)
         for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
             evaluator.set_frame(frame)
             weights = {}
@@ -590,6 +623,7 @@ class FlexFrames(Frames):
                 weights[index] = evaluator.get_shapekey_value(self.shapekey_object, frame, flex_name)
 
             data[str(frame)] = FlexFrame(weights=weights, scale=1.0).to_json()
+        evaluator.reset_shapekey_range(self.shapekey_object)
 
         return data
 
