@@ -7,6 +7,7 @@
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
     - [Exporting Shapekeys](#exporting-shapekeys)
     - [Exporting Camera Animations](#exporting-camera-animations)
+    - [Exporting Constraints and Drivers](#exporting-constraints-and-drivers)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
     - [Importing Shapekeys](#importing-shapekeys)
     - [Importing Camera Animations](#importing-camera-animations)
@@ -113,6 +114,12 @@ Note that if there are keyframes to animate a camera's focal length, then these 
 The following video demonstrates exporting a Blender camera animation into GMod.
 
 https://github.com/user-attachments/assets/54c1e827-718c-4f2f-9b80-f7c03813a260
+
+### Exporting Constraints and Drivers
+
+Version 0.9.0 adds a `Visual Keying` option when you click the `Export SMH File` button. This exports animations with constraints, drivers, or custom modifiers applied (e.g. Blender Jiggle Physics by naelstrof). This works in a similar fashion to performing `Bake action` for each armature, in that it "bakes" a bone's pose or camera's position as viewed in the scene. Constraints and driver expressions are preserved with this option.
+
+Checking `Visual Keying` results in slow exporting times because this evaluates the scene on every frame.
 
 ## Stop Motion Helper to Blender
 

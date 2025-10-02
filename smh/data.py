@@ -10,7 +10,7 @@ from .types.entity import SMHEntityBuilder, SMHEntityResult
 
 from .props import SMHMetaData, SMHProperties, SMHExportProperties, SMHImportProperties
 
-from .exporter import SMHExporter as exp
+from .exporter import SMHExporter as exp, FCurveEvaluator, VisualKeyingEvaluator
 from .importer import SMHImporter as imp
 
 camera_map = ['static_prop']
@@ -58,7 +58,13 @@ class SMHEntity():
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
             flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
 
-        exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
+        exporter = exp(
+            action=action,
+            armature=self.armature,
+            use_scene_range=use_scene_range,
+            frame_step=frame_step,
+            evaluator=VisualKeyingEvaluator(
+                bpy.context.scene.frame_current) if export_props.visual_keying else FCurveEvaluator())
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
         exporter.prepare_bones(
             bone_map=bone_map,
@@ -68,8 +74,7 @@ class SMHEntity():
         exporter.prepare_modifiers()
         if self.metadata.export_shapekeys_to_flex and self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
-            if shapekey_object.shape_keys.animation_data.action and shapekey_object.shape_keys.animation_data.action.fcurves:
-                exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
+            exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
         exporter.export(self.data, export_props=export_props)
 
         return self.data
@@ -84,10 +89,17 @@ class SMHEntity():
 
         physics_obj_map = camera_map
 
-        exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
+        exporter = exp(
+            action=action,
+            armature=self.armature,
+            use_scene_range=use_scene_range,
+            frame_step=frame_step,
+            evaluator=VisualKeyingEvaluator(
+                bpy.context.scene.frame_current) if export_props.visual_keying else FCurveEvaluator())
         exporter.prepare_modifiers()
         exporter.prepare_camera(physics_obj_map=physics_obj_map)
         exporter.export(self.data, export_props=export_props)
+        exporter.evaluator.reset_frame()
 
         return self.data
 
@@ -160,6 +172,7 @@ class SMHEntity():
             shapekey_object: bpy.types.Mesh = metadata.shapekey_object
             flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
 
+        print("add flexes")
         if metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = metadata.shapekey_object
             shapekey_object.shape_keys.animation_data_create()

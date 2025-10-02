@@ -106,6 +106,11 @@ class SMHExportProperties(bpy.types.PropertyGroup):
         "Batch Export",
         "Export all actions from each armature in the scene into an SMH animation file. The selected armature's action will be used as the name"
     )
+    visual_keying: BoolProperty(
+        name="Visual Keying",
+        description="If enabled, the addon will export the visual transforms of the bones, rather than the local transforms. This is useful if you have constraints or parented bones that you want to be reflected in the SMH animation",
+        default=False,
+    )
 
 
 class SMHImportProperties(bpy.types.PropertyGroup):

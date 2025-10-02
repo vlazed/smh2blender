@@ -21,6 +21,8 @@ from .smh.data import SMHFile
 from .smh.modifiers import register_modifiers, unregister_modifiers
 from .smh.types.shared import ArmatureObject, CameraObject
 
+import time
+
 bl_info = {
     "name": "SMH Importer/Exporter",
     "author": "vlazed",
@@ -92,8 +94,10 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
         frame = layout.row()
         frame.enabled = not export_props.keyframes_only
         frame.prop(export_props, "frame_step")
+        key = layout.row()
+        key.prop(export_props, "batch")
+        key.prop(export_props, "visual_keying")
         col = layout.column()
-        col.prop(export_props, "batch")
         col.prop(export_props, "smh_version")
 
         # # This won't show up in older versions of Blender. Nonetheless, this is certainly cosmetic
@@ -176,6 +180,7 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
                 'ERROR')
             return {'CANCELLED'}
 
+        start_time = time.perf_counter()
         filename = action.name + ".txt"
 
         contents = SMHFile().serialize(armatures=armatures, properties=selected_properties, export_props=export_props)
@@ -186,9 +191,11 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
             show_message(
                 f"SMH Exporter: An error as occurred during the process: {e}", "Error", 'ERROR')
             return {'CANCELLED'}
-
+        end_time = time.perf_counter()
         show_message(
             f"SMH Exporter: Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")
+
+        self.report({'INFO'}, f"SMH Exporter: Finished in {end_time - start_time:.4f} seconds")
         return {'FINISHED'}
 
 
@@ -317,12 +324,15 @@ class SMH_OT_SMHToBlender(bpy.types.Operator):
         selected_metadata: SMHMetaData = selected_armature.smh_metadata
 
         converter = SMHConverter(selected_metadata, import_props)
+        start_time = time.perf_counter()
         if import_props.batch:
             for armature in bpy.data.objects:
                 converter.convert(armature)
         else:
             converter.convert(selected_armature)
+        end_time = time.perf_counter()
 
+        self.report({'INFO'}, f"SMH Importer: Finished in {end_time - start_time:.4f} seconds")
         return {'FINISHED'}
 
 
