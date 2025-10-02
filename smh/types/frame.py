@@ -40,6 +40,10 @@ class SMHEntityDataDict(TypedDict):
     physbones: dict[str, PhysBoneData]
     position: GenericBoneData
     flex: FlexData
+    advcamera: CameraData
+
+
+known_modifiers = set(["bones", "physbones", "position", "flex", "advcamera"])
 
 
 class SMHFrameBase(TypedDict):

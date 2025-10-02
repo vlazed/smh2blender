@@ -75,6 +75,8 @@ class SMHEntity():
         if self.metadata.export_shapekeys_to_flex and self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
             exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
+
+        exporter.prepare()
         exporter.export(self.data, export_props=export_props)
 
         return self.data
@@ -98,6 +100,8 @@ class SMHEntity():
                 bpy.context.scene.frame_current) if export_props.visual_keying else FCurveEvaluator())
         exporter.prepare_modifiers()
         exporter.prepare_camera(physics_obj_map=physics_obj_map)
+
+        exporter.prepare()
         exporter.export(self.data, export_props=export_props)
         exporter.evaluator.reset_frame()
 

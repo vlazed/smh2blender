@@ -124,7 +124,7 @@ https://github.com/user-attachments/assets/54c1e827-718c-4f2f-9b80-f7c03813a260
 
 Version 0.9.0 adds a `Visual Keying` option when you click the `Export SMH File` button. This exports animations with constraints, drivers, or custom modifiers applied (e.g. Blender Jiggle Physics by naelstrof). This works in a similar fashion to performing `Bake action` for each armature, in that it "bakes" a bone's pose or camera's position as viewed in the scene. Constraints and driver expressions are preserved with this option.
 
-Checking `Visual Keying` results in slow exporting times because this evaluates the scene on every frame.
+`Visual Keying` is enabled by default because exports are 1.3 to 1.8 times faster than it being disabled.
 
 ## Stop Motion Helper to Blender
 
