@@ -155,7 +155,11 @@ Play back the animation to ensure everything is in place. If necessary, export t
 
 ### Importing Shapekeys
 
-Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Import shapekeys to flexes` before importing.
+Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. To successfully import into a mesh's shapekeys, you must meet the following pre-requisites:
+
+- Assign the flex map and the shapekey mesh in the `Configuration`,
+- Check `Import shapekeys to flexes`, and
+- Ensure `Solo Active Shape Key` is disabled (look by a pin or star icon).
 
 See [Exporting Shapekeys](#exporting-shapekeys) for more info on the quirks. In addition, importing may incur animation data loss if the shapekey does not exist for the character. This can occur if the qc file uses flexpairs, or if one makes the flexes using HWM or FACS.
 

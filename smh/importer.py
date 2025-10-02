@@ -355,7 +355,8 @@ class SMHImporter:
         samples: Generator[float, None, None],
         data_path: str,
         group_name: str,
-        index: float = 0
+        index: float = 0,
+        slot=None,
     ):
         num_frames = len(frames)
         interpolation = [
@@ -363,7 +364,7 @@ class SMHImporter:
 
         fc: bpy.types.FCurve = None
         if version_has_slots():
-            channelbag = self.strip.channelbag(self.armature.animation_data.action_slot)
+            channelbag = self.strip.channelbag(slot if slot is not None else self.armature.animation_data.action_slot)
             group = channelbag.groups.get(group_name, channelbag.groups.new(group_name))
             fc = channelbag.fcurves.new(data_path=data_path, index=index)
             fc.group = group
@@ -560,6 +561,21 @@ class SMHImporter:
         flex_samples = [[float(weight) * float(sample.scale) for weight in sample.weights] for sample in flex_data]
         flex_samples = transpose_list(flex_samples)
 
+        slot = None
+        if version_has_slots():
+            if not shapekey_object.shape_keys or not shapekey_object.shape_keys.animation_data:
+                return
+            if not shapekey_object.shape_keys.animation_data.action:
+                return
+            action = shapekey_object.shape_keys.animation_data.action
+            action_name = shapekey_object.name
+            if shapekey_object.name:
+                action_name = shapekey_object.shape_keys.name
+
+            slot = action.slots.new('KEY', action_name)
+            shapekey_object.shape_keys.animation_data.action_slot = slot
+            self.strip.channelbags.new(slot)
+
         for index, flex_name in enumerate(self.flex_map):
             shapekey: bpy.types.ShapeKey | None = shapekey_object.shape_keys.key_blocks.get(flex_name)
             if not shapekey:
@@ -571,7 +587,8 @@ class SMHImporter:
                 data_path=data_path,
                 group_name=flex_name,
                 frames=frames,
-                samples=samples
+                samples=samples,
+                slot=slot
             )
 
     def import_camera(self,
