@@ -52,7 +52,7 @@ class SMHEntity():
         physics_obj_map = load_map(bpy.path.abspath(self.metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(self.metadata.bone_path))
         flex_map = None
-        if self.metadata.export_shapekeys_to_flex:
+        if self.metadata.export_shapekeys_to_flex and self.metadata.flex_path:
             flex_map = load_map(bpy.path.abspath(self.metadata.flex_path))
         elif self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
@@ -166,13 +166,12 @@ class SMHEntity():
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
         flex_map = None
-        if metadata.import_flex_to_shapekeys:
+        if metadata.import_flex_to_shapekeys and metadata.flex_path:
             flex_map = load_map(bpy.path.abspath(metadata.flex_path))
         elif metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = metadata.shapekey_object
             flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
 
-        print("add flexes")
         if metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = metadata.shapekey_object
             shapekey_object.shape_keys.animation_data_create()
