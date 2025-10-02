@@ -109,7 +109,7 @@ class SMHExportProperties(bpy.types.PropertyGroup):
     visual_keying: BoolProperty(
         name="Visual Keying",
         description="If enabled, the addon will export the visual transforms of the bones, rather than the local transforms. This is useful if you have constraints or parented bones that you want to be reflected in the SMH animation",
-        default=False,
+        default=True,
     )
 
 

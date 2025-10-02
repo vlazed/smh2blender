@@ -112,9 +112,9 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
-    def check_armature(
+    def check_object(
             self,
-            armature: ArmatureObject,
+            armature: ArmatureObject | CameraObject,
             metadata: SMHMetaData,
             properties: SMHProperties,
             selected_metadata: SMHMetaData):
@@ -156,41 +156,53 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
                 "No animation found. Make sure that the selected armature has an `Animation`", "Error", 'ERROR')
             return {'CANCELLED'}
 
-        armatures: list[ArmatureObject] = []
+        exportables: list[ArmatureObject | CameraObject] = []
+        exportable_set = set()
         if export_props.batch:
-            for armature in bpy.data.objects:
-                if armature.type in acceptable_types:
-                    metadata: SMHMetaData = armature.smh_metadata
-                    properties: SMHProperties = armature.smh_properties
-                    if self.check_armature(armature, metadata, properties, selected_metadata):
-                        armatures.append(armature)
+            for object in bpy.data.objects:
+                if object.type in acceptable_types:
+                    metadata: SMHMetaData = object.smh_metadata
+                    properties: SMHProperties = object.smh_properties
+                    if self.check_object(object, metadata, properties, selected_metadata):
+                        exportables.append(object)
+                        exportable_set.add(object)
         else:
-            if self.check_armature(
+            if self.check_object(
                     selected_armature,
                     selected_metadata,
                     selected_properties,
                     selected_metadata=selected_metadata
             ):
-                armatures.append(selected_armature)
+                exportables.append(selected_armature)
+                exportable_set.add(selected_armature)
 
-        if not armatures:
+        if not exportables:
             show_message(
                 "Selected armature or armatures in scene did not pass. Check the message boxes to figure out the issue",
                 "Error",
                 'ERROR')
             return {'CANCELLED'}
 
+        # Hide all visible non-armature objects to avoid unnecessary scene calculations
+        hidden_objects = [obj for obj in bpy.data.objects if obj not in exportable_set and not obj.hide_viewport]
+
         start_time = time.perf_counter()
         filename = action.name + ".txt"
 
-        contents = SMHFile().serialize(armatures=armatures, properties=selected_properties, export_props=export_props)
+        for obj in hidden_objects:
+            obj.hide_viewport = True
         try:
+            contents = SMHFile().serialize(armatures=exportables, properties=selected_properties, export_props=export_props)
             with open(bpy.path.abspath(selected_metadata.savepath + filename), "w+") as f:
                 f.write(contents)
         except Exception as e:
             show_message(
                 f"SMH Exporter: An error as occurred during the process: {e}", "Error", 'ERROR')
             return {'CANCELLED'}
+        finally:
+            for obj in hidden_objects:
+                obj.hide_viewport = False
+
         end_time = time.perf_counter()
         show_message(
             f"SMH Exporter: Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")

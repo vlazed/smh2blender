@@ -262,6 +262,8 @@ class SMHEntity():
         elif object.type == 'CAMERA':
             return cls.bake_to_camera(data, import_props, metadata, filename, object)
 
+        return False, "Object is not an armature or camera"
+
 
 class SMHFile():
     @classmethod
