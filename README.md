@@ -21,7 +21,8 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 ### Requirements
 
 - [Script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone maps
-- Blender 2.8 and up
+- Blender 4.4 and up
+  - This addon is also confirmed to work in Blender 3.6, but it is considered legacy.  
 - Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
 
 ### Features
