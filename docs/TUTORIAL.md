@@ -96,13 +96,18 @@ Notice that the name of the file is the name of the action.
 
 ![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.PNG)
 
-Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Export shapekeys to flexes` before exporting
+Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. To ensure shapekeys are exported correctly, you must meet the following pre-requisites:
+
+- Assign either a flex map or a shapekey mesh or both in the `Configuration`,
+- Check `Export shapekeys to flexes`, and
+- Ensure `Solo Active Shape Key` is disabled (look by a pin or star icon).
 
 There are a few quirks to learn about when exporting shapekeys to flexes:
 
 - To guarantee a close to one-to-one shapekey animation between GMod and Blender, you must satisfy the following:
   - Have the same shapekeys (flexes) and faceposing values (flex controllers) in your mesh, case sensitive;
   - Flex equations (e.g. %CloseLidLoL = (min(max((eyes_updown - -45) / (45 - -45), 0), 1))) must be linear to a single variable (e.g. %AH = AH. The earlier example does not count because of the min/max functions)
+  - Supply a flex map. If no flex map is used, it will use its existing shapekeys as the flex map. This may not guarantee one-to-one shapekey animations if the shapekey order in Blender does not match the order in GMod  
 - If flex modifier from a previous session has been used, and one attempts to export both shapekey animations and flex modifier data, shapekey animations will always override them.
 
 ### Exporting Camera Animations
@@ -164,7 +169,7 @@ Play back the animation to ensure everything is in place. If necessary, export t
 
 Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. To successfully import into a mesh's shapekeys, you must meet the following pre-requisites:
 
-- Assign the flex map and the shapekey mesh in the `Configuration`,
+- Assign either a flex map or a shapekey mesh or both in the `Configuration`,
 - Check `Import shapekeys to flexes`, and
 - Ensure `Solo Active Shape Key` is disabled (look by a pin or star icon).
 
