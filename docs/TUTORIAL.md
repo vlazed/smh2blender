@@ -145,8 +145,9 @@ To generate a reference animation file, use the features in the script and Stop 
 ![gmod-angle-offset](/media/gmod-angle-offset.png)
 
 1. Put the model in reference pose (use Stand Poser or Ragdoll Puppeteer, which ever puts it to the correct reference pose),
-   - The reference pose in GMod and Blender must match. It must face the same orientation in Blender and in GMod.
+   - The reference pose in GMod and Blender must match. The GMod reference orientation must face the Blender reference orientation.
    - The `Set Reference Pose` button helps ensure this. If the angle is off, use the `Reference Angle Offset` slider to set the corrections in 90-degree intervals.
+   - You can also import a map into Blender using [SourceIO](https://github.com/REDxEYE/SourceIO) to match the orientation.
 2. Select the entity with SMH, and record one keyframe in any frame position.
 3. Save the animation file, and load it in the Configurations menu.
 4. Provide the name of the entity from the reference file (typically the model name, unless the animator gave it a different name).
