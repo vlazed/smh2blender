@@ -6,7 +6,7 @@ from mathutils import Vector, Euler, Matrix, Quaternion
 from abc import abstractmethod
 from typing import List
 
-from .types.frame import BoneData, PhysBoneData, ModifierData, FlexData, SMHFrameResult, SMHFrameBuilder, CameraData
+from .types.frame import BoneData, PhysBoneData, ModifierData, FlexData, SMHFrameResult, SMHFrameBuilder, CameraData, known_modifiers
 from .types.shared import BoneMap, ArmatureObject, SMHFileType, CameraObject
 from .types.entity import SMHEntityResult
 
@@ -158,6 +158,152 @@ def get_camera_pose_matrices(obj: Object, matrix_map: dict[str, Matrix], frame: 
     matrix_map['static_prop'] = get_matrix_basis_from_fcurve(obj, fcurves, frame)
 
 
+class FrameEvaluator:
+    matrix_map: dict[str, Matrix]
+
+    def set_frame(self, frame: float):
+        pass
+
+    def reset_frame(self):
+        pass
+
+    def build_camera_matrix_map(self, obj: Object, frame: float):
+        pass
+
+    def build_matrix_map(self, obj: Object, frame: float):
+        pass
+
+    def get_pose_matrix(self, obj: Object, frame: float, bone_name: str) -> Matrix | None:
+        raise NotImplementedError()
+
+    def get_bone_matrix(self, obj: Object, frame: float, bone: Bone) -> Matrix | None:
+        raise NotImplementedError()
+
+    def get_camera_matrix(self, obj: Object, frame: float) -> Matrix | None:
+        raise NotImplementedError()
+
+    def get_camera_focal_length(self, obj: CameraObject, frame: float) -> float:
+        raise NotImplementedError()
+
+    def initialize_shapekey_range(self, obj: bpy.types.Mesh):
+        pass
+
+    def reset_shapekey_range(self, obj: bpy.types.Mesh):
+        pass
+
+    def get_shapekey_value(self, obj: bpy.types.Mesh, frame: float, shapekey_name: str) -> float:
+        raise NotImplementedError()
+
+
+class FCurveEvaluator(FrameEvaluator):
+    matrix_map: dict[str, Matrix]
+
+    def build_matrix_map(self, obj: Object, frame: float):
+        self.matrix_map = {}
+        get_pose_matrices(obj, self.matrix_map, frame)
+
+    def build_camera_matrix_map(self, obj: Object, frame: float):
+        self.matrix_map = {}
+        get_camera_pose_matrices(obj, self.matrix_map, frame)
+
+    def get_bone_matrix(self, obj: Object, frame: float, bone: Bone) -> Matrix | None:
+        return get_matrix_basis_from_fcurve(bone, obj.animation_data.action.fcurves, frame)
+
+    def get_pose_matrix(self, obj, frame, bone_name):
+        return self.matrix_map.get(bone_name)
+
+    def get_camera_matrix(self, obj, frame):
+        return self.matrix_map.get('static_prop')
+
+    def get_camera_focal_length(self, obj: CameraObject, frame: float) -> float | None:
+        fc = None
+        # Check for keyframe data for the currently active action slot
+        if version_has_slots() and obj.data.animation_data and obj.data.animation_data.action and len(
+                obj.data.animation_data.action.layers) > 0:
+            fc = obj.data.animation_data.action.layers[0].strips[0].channelbag(
+                obj.data.animation_data.action_slot).fcurves.find('lens')
+        # Use imported data if it doesn't exist
+        if not fc:
+            fc = obj.animation_data.action.fcurves.find('data.lens')
+
+        if fc:
+            return fc.evaluate(frame)
+
+        return obj.data.lens
+
+    def get_shapekey_value(self, obj: bpy.types.Mesh, frame, shapekey_name):
+        if not obj.shape_keys:
+            return 0.0
+
+        shape_key = obj.shape_keys.key_blocks.get(shapekey_name)
+        if not shape_key:
+            return 0.0
+
+        if version_has_slots() and obj.shape_keys.animation_data and obj.shape_keys.animation_data.action and len(
+                obj.shape_keys.animation_data.action.layers) > 0:
+            fc: bpy.types.FCurve = obj.shape_keys.animation_data.action.layers[0].strips[0].channelbag(
+                obj.shape_keys.animation_data.action_slot).fcurves.find(shape_key.path_from_id('value'))
+            if fc:
+                return fc.evaluate(frame)
+        elif obj.shape_keys.animation_data and obj.shape_keys.animation_data.action:
+            fc = obj.shape_keys.animation_data.action.fcurves.find(shape_key.path_from_id('value'))
+            if fc:
+                return fc.evaluate(frame)
+
+        return 0.0
+
+
+class VisualKeyingEvaluator(FrameEvaluator):
+    old_shapekey_ranges: dict[str, tuple[float, float]]
+
+    def __init__(self, frame: float):
+        self.initial_frame = frame
+
+    def set_frame(self, frame: float):
+        bpy.context.scene.frame_set(frame)
+
+    def reset_frame(self):
+        bpy.context.scene.frame_set(self.initial_frame)
+
+    def get_camera_matrix(self, obj, frame):
+        return obj.matrix_world
+
+    def get_pose_matrix(self, obj, frame, bone_name):
+        pbone = obj.pose.bones.get(bone_name)
+        return pbone.matrix if pbone else None
+
+    def get_bone_matrix(self, obj, frame, bone: Bone):
+        pbone = obj.pose.bones.get(bone.name)
+        return pbone.matrix_basis if pbone else None
+
+    def get_camera_focal_length(self, obj, frame):
+        return obj.data.lens
+
+    def initialize_shapekey_range(self, obj: bpy.types.Mesh):
+        self.old_shapekey_ranges = {}
+
+        for shapekey in obj.shape_keys.key_blocks:
+            self.old_shapekey_ranges[shapekey.name] = (shapekey.slider_min, shapekey.slider_max)
+            shapekey.slider_min = -1e9
+            shapekey.slider_max = 1e9
+
+    def reset_shapekey_range(self, obj: bpy.types.Mesh):
+        for shapekey in obj.shape_keys.key_blocks:
+            shapekey.slider_min = self.old_shapekey_ranges.get(shapekey.name, (0, 1))[0]
+            shapekey.slider_max = self.old_shapekey_ranges.get(shapekey.name, (0, 1))[1]
+
+    def get_shapekey_value(self, obj: bpy.types.Mesh, frame, shapekey_name):
+        if not obj.shape_keys:
+            return 0.0
+
+        shape_key = obj.shape_keys.key_blocks.get(shapekey_name)
+        if not shape_key:
+            return 0.0
+        value = shape_key.value
+
+        return value
+
+
 class PhysBoneTree:
     class PhysBone:
         parent: PoseBone | None
@@ -273,15 +419,14 @@ class BoneFrame(Frame):
         self.scale = Vector((1, 1, 1))
 
     # manip_matrix is in local space
-    def calculate(self, fcurves: ActionFCurves, frame: int):
-        matrix_basis = get_matrix_basis_from_fcurve(self.bone, fcurves, frame)
+    def calculate(self, matrix: Matrix):
         rest_matrix = self.bone.matrix_basis
 
-        self.pos = matrix_basis.translation - rest_matrix.translation
-        self.scale = matrix_basis.to_scale()
+        self.pos = matrix.translation - rest_matrix.translation
+        self.scale = matrix.to_scale()
 
-        rest_matrix.to_3x3().rotate(matrix_basis.to_euler(ORDER))
-        self.ang = matrix_basis.to_euler(ORDER)
+        rest_matrix.to_3x3().rotate(matrix.to_euler(ORDER))
+        self.ang = matrix.to_euler(ORDER)
 
     def to_json(self) -> BoneData:
         return {
@@ -346,29 +491,13 @@ class CameraFrame(Frame):
     def __init__(self, camera):
         self.camera = camera
 
-    def get_lens_fcurve(self) -> bpy.types.FCurve | None:
-        fc = None
-        # Check for keyframe data for the currently active action slot
-        if version_has_slots() and len(self.camera.data.animation_data.action.layers) > 0:
-            fc = self.camera.data.animation_data.action.layers[0].strips[0].channelbag(
-                self.camera.data.animation_data.action_slot).fcurves.find('lens')
-        # Use imported data if it doesn't exist
-        if not fc:
-            fc = self.camera.animation_data.action.fcurves.find('data.lens')
-
-        return fc
-
     # Matrices are defined in pose space
     def calculate(self, matrix: Matrix):
         self.pos = matrix.translation
         self.ang = matrix.to_euler(ORDER)
 
-    def calculate2(self, frame: float):
+    def calculate2(self, focal_length: float):
         # Exporting animatable focal length from fcurves is only available after Blender 4.4
-        focal_length = 50
-        fc = self.get_lens_fcurve()
-        if fc:
-            focal_length = fc.evaluate(frame)
         self.fov = degrees(2 * atan(self.camera.data.sensor_width * 0.5 / focal_length))
 
     def to_json(self) -> PhysBoneData:
@@ -409,68 +538,69 @@ class Frames:
         self.frame_range = frame_range
 
     @abstractmethod
-    def to_json(self, map: BoneMap | None, physics_map: BoneMap | None): pass
+    def to_json(self, frame: float, evaluator: FrameEvaluator): pass
 
 
 class ModifierFrames(Frames):
-    def to_json(self):
-        data: dict[str, ModifierData] = {}
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            data[str(frame)] = {}
-            # FIXME: Iterate through modifiers that have a keyframe, instead of all modifiers
-            # Reduces n modifiers in O(n(2m)), and also discards one m fcurve check to O(nm), because
-            # we needed to check of animation data existed
-            for modifier in modifiers:
-                attr: bpy.types.PropertyGroup | None = getattr(self.armature, modifier, None)
-                if not attr:
+    def to_json(self, frame: float) -> ModifierData:
+        data: ModifierData = {}
+        # FIXME: Iterate through modifiers that have a keyframe, instead of all modifiers
+        # Reduces n modifiers in O(n(2m)), and also discards one m fcurve check to O(nm), because
+        # we needed to check of animation data existed
+        for modifier in modifiers:
+            attr: bpy.types.PropertyGroup | None = getattr(self.armature, modifier, None)
+            if not attr:
+                continue
+            props = [prop for prop in attr.bl_rna.properties if prop.is_runtime]
+            mod_name = modifier
+            if mod_map.get(modifier):
+                mod_name = mod_map[modifier]
+
+            data[mod_name] = {}
+            for prop in props:
+                prop_obj = getattr(attr, prop.identifier, None)
+                if prop_obj is None:
                     continue
-                props = [prop for prop in attr.bl_rna.properties if prop.is_runtime]
-                mod_name = modifier
-                if mod_map.get(modifier):
-                    mod_name = mod_map[modifier]
 
-                data[str(frame)][mod_name] = {}
-                for prop in props:
-                    prop_obj = getattr(attr, prop.identifier, None)
-                    if prop_obj is None:
-                        continue
+                data_path = f'{modifier}.{prop.identifier}'
+                if not fcurve_exists(self.armature, data_path):
+                    continue
 
-                    data_path = f'{modifier}.{prop.identifier}'
-                    if not fcurve_exists(self.armature, data_path):
-                        continue
+                if prop.type == 'COLLECTION':
+                    # If this is a CollectionProperty of size n, we want to store the value of each item in a dictionary:
+                    # dict = {"0": val_0, "1": val_1 ... "n-1": val_n-1}
+                    if prop.identifier == 'value':
+                        data[mod_name] = {
+                            str(index): get_modifier_frame_value(
+                                data_path=data_path,
+                                obj=self.armature,
+                                frame=frame,
+                                index=index) for index,
+                            obj in enumerate(prop_obj)}
+                    else:
+                        data[mod_name][prop.identifier] = {
+                            str(index): get_modifier_frame_value(data_path=data_path, obj=self.armature, frame=frame, index=index)
+                            for index, obj in enumerate(prop_obj)
+                        }
+                elif prop.type == 'FLOAT':
+                    # If this is a float of size 1 < n <= 4, we want to store the value of each item as a vector or color,
+                    # depending on the size
+                    if type(prop_obj) == bpy.types.bpy_prop_array:
+                        data[mod_name][prop.identifier] = Frame.list_to_json([
+                            get_modifier_frame_value(data_path=data_path, obj=self.armature, frame=frame, index=index)
+                            for index in range(len(prop_obj))
+                        ])
+                    elif prop.identifier == 'value':
+                        data[mod_name] = get_modifier_frame_value(
+                            data_path=data_path, obj=self.armature, frame=frame)
+                    else:
+                        value = get_modifier_frame_value(
+                            data_path=data_path, obj=self.armature, frame=frame)
+                        data[mod_name][prop.identifier] = value
 
-                    if prop.type == 'COLLECTION':
-                        # If this is a CollectionProperty of size n, we want to store the value of each item in a dictionary:
-                        # dict = {"0": val_0, "1": val_1 ... "n-1": val_n-1}
-                        if prop.identifier == 'value':
-                            data[str(frame)][mod_name] = {
-                                str(index): get_modifier_frame_value(data_path=data_path, obj=self.armature, frame=frame, index=index)
-                                for index, obj in enumerate(prop_obj)
-                            }
-                        else:
-                            data[str(frame)][mod_name][prop.identifier] = {
-                                str(index): get_modifier_frame_value(data_path=data_path, obj=self.armature, frame=frame, index=index)
-                                for index, obj in enumerate(prop_obj)
-                            }
-                    elif prop.type == 'FLOAT':
-                        # If this is a float of size 1 < n <= 4, we want to store the value of each item as a vector or color,
-                        # depending on the size
-                        if type(prop_obj) == bpy.types.bpy_prop_array:
-                            data[str(frame)][mod_name][prop.identifier] = Frame.list_to_json([
-                                get_modifier_frame_value(data_path=data_path, obj=self.armature, frame=frame, index=index)
-                                for index in range(len(prop_obj))
-                            ])
-                        elif prop.identifier == 'value':
-                            data[str(frame)][mod_name] = get_modifier_frame_value(
-                                data_path=data_path, obj=self.armature, frame=frame)
-                        else:
-                            value = get_modifier_frame_value(
-                                data_path=data_path, obj=self.armature, frame=frame)
-                            data[str(frame)][mod_name][prop.identifier] = value
-
-                if type(data[str(frame)][mod_name]) == dict and len(data[str(frame)][mod_name]) == 0:
-                    # No keyframes exists for the current modifier? Don't use it
-                    del data[str(frame)][mod_name]
+            if type(data[mod_name]) == dict and len(data[mod_name]) == 0:
+                # No keyframes exists for the current modifier? Don't use it
+                del data[mod_name]
 
         return data
 
@@ -478,124 +608,122 @@ class ModifierFrames(Frames):
 class FlexFrames(Frames):
     shapekey_object: bpy.types.Mesh
 
-    def __init__(self, armature: Armature | Object, frame_range: list[float], shapekey_object: bpy.types.Mesh):
+    def __init__(
+            self,
+            armature: Armature | Object,
+            frame_range: list[float],
+            shapekey_object: bpy.types.Mesh,
+            map: BoneMap):
         super().__init__(armature, frame_range)
         self.shapekey_object = shapekey_object
+        self.map = map
 
-    def to_json(self, map: BoneMap):
+    def to_json(self, frame: float, evaluator: FrameEvaluator) -> FlexData:
         data: FlexData = {}
 
-        shape_keys = self.shapekey_object.shape_keys.key_blocks
-        fcurves = self.shapekey_object.shape_keys.animation_data.action.fcurves  # type: ignore
+        # Prepare shapekey ranges for visual keying because shapekey values are clamped in the range [0, 1]
+        weights = {}
+        for index, flex_name in enumerate(self.map):
+            weights[index] = evaluator.get_shapekey_value(self.shapekey_object, frame, flex_name)
 
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            weights = {}
-            for index, flex_name in enumerate(map):
-                if not shape_keys.get(flex_name):
-                    weights[index] = 0.0
-                    continue
-
-                shape_key = shape_keys[flex_name]
-                fc = fcurves.find(shape_key.path_from_id('value'))
-                value = 0.0
-                if fc:
-                    value = fc.evaluate(frame)
-                weights[index] = value
-
-            data[str(frame)] = FlexFrame(weights=weights, scale=1.0).to_json()
+        data = FlexFrame(weights=weights, scale=1.0).to_json()
 
         return data
 
 
 class PhysBoneFrames(Frames):
-    def to_json(self, map: BoneMap):
-        data: dict[str, PhysBoneData] = {}
+    def __init__(self, armature, frame_range, map: BoneMap):
+        super().__init__(armature, frame_range)
+        self.map = map
 
-        physics_obj_tree = PhysBoneTree(self.armature, map)
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            # Matrices with respect to world space
-            matrix_map: dict[str, Matrix] = {}
-            get_pose_matrices(self.armature, matrix_map, frame)
-            data[str(frame)] = {}
+    def to_json(self, frame: float, evaluator: FrameEvaluator) -> PhysBoneData:
+        data: PhysBoneData = {}
 
-            for phys_id, bone_name in enumerate(map):
-                bone = self.armature.pose.bones.get(bone_name)
-                if bone:
-                    frame_obj = PhysBoneFrame(bone=bone)
-                    parent = physics_obj_tree.get_parent(bone_name)
-                    frame_obj.calculate(
-                        matrix_map[bone_name], matrix_map.get(parent.name if parent else "", None))
+        physics_obj_tree = PhysBoneTree(self.armature, self.map)
 
-                    data[str(frame)][str(phys_id)] = frame_obj.to_json()
+        # Matrices with respect to world space
+        evaluator.build_matrix_map(self.armature, frame)
+
+        for phys_id, bone_name in enumerate(self.map):
+            bone = self.armature.pose.bones.get(bone_name)
+            if bone:
+                frame_obj = PhysBoneFrame(bone=bone)
+                parent = physics_obj_tree.get_parent(bone_name)
+                matrix = evaluator.get_pose_matrix(self.armature, frame, bone_name)
+                parent_matrix = None
+                if parent:
+                    parent_matrix = evaluator.get_pose_matrix(self.armature, frame, parent.name)
+                frame_obj.calculate(matrix, parent_matrix)
+
+                data[str(phys_id)] = frame_obj.to_json()
 
         return data
 
 
 class CameraFrames(Frames):
-    def to_json(self, map: BoneMap):
-        data: dict[str, PhysBoneData] = {}
+    def __init__(self, armature, frame_range, map: BoneMap):
+        super().__init__(armature, frame_range)
+        self.map = map
 
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            # Matrices with respect to world space
-            matrix_map: dict[str, Matrix] = {}
-            get_camera_pose_matrices(self.armature, matrix_map, frame)
-            data[str(frame)] = {}
+    def to_json(self, frame, evaluator: FrameEvaluator) -> PhysBoneData:
+        data: PhysBoneData = {}
 
-            for phys_id, bone_name in enumerate(map):
-                frame_obj = CameraFrame(camera=self.armature)
-                frame_obj.calculate(
-                    matrix_map[bone_name])
+        evaluator.build_camera_matrix_map(self.armature, frame)
 
-                data[str(frame)][str(phys_id)] = frame_obj.to_json()
+        for phys_id, bone_name in enumerate(self.map):
+            frame_obj = CameraFrame(camera=self.armature)
+            frame_obj.calculate(evaluator.get_camera_matrix(self.armature, frame))
+
+            data[str(phys_id)] = frame_obj.to_json()
 
         return data
 
-    def to_json2(self, modifier_frames: dict[str, dict[str, CameraData]]):
-        data: dict[str, CameraData] = {}
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            frame_str = str(frame)
-            data[frame_str] = {}
-            cam_data = None
-            if modifier_frames and modifier_frames.get(frame_str) and modifier_frames[frame_str].get("advcamera"):
-                cam_data = modifier_frames[frame_str]["advcamera"]
+    def to_json2(self, frame: float, modifier_frames: CameraData, evaluator: FrameEvaluator) -> CameraData:
+        data: CameraData = {}
 
-            frame_obj = CameraFrame(camera=self.armature)
-            frame_obj.calculate2(frame)
-            data[frame_str] = frame_obj.to_json2(cam_data)
+        frame_obj = CameraFrame(camera=self.armature)
+        frame_obj.calculate2(evaluator.get_camera_focal_length(self.armature, frame))
+        data = frame_obj.to_json2(modifier_frames)
 
         return data
 
 
 class BoneFrames(Frames):
-    def to_json(self, map: BoneMap, physics_map: BoneMap, angle_offset: Euler, pos_offset: Vector):
-        data: dict[str, BoneData] = {}
+    def __init__(
+            self,
+            armature,
+            frame_range,
+            map: BoneMap,
+            physics_map: BoneMap,
+            angle_offset: Euler,
+            pos_offset: Vector):
+        super().__init__(armature, frame_range)
+        self.map = map
+        self.physics_map = physics_map
+        self.angle_offset = angle_offset
+        self.pos_offset = pos_offset
+
+    def to_json(self, frame: float, evaluator: FrameEvaluator) -> BoneData:
+        data: BoneData = {}
         if not self.armature.animation_data.action:
             return data
 
-        fcurves = self.armature.animation_data.action.fcurves
-        if not fcurves:
-            return data
+        physics_set = set(self.physics_map)
 
-        physics_set = set(physics_map)
-
-        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
-            data[str(frame)] = {}
-
-            # Matrices with respect to rest pose
-            for boneIndex, boneName in enumerate(map):
-                bone = self.armature.pose.bones.get(boneName)
-                # Prevent "doubling" on the physics movement
-                if bone:
-                    frame_obj = BoneFrame(bone=bone)
-                    if boneName not in physics_set:
-                        frame_obj.calculate(
-                            fcurves=fcurves, frame=frame)
-                    # Check for root physics bones: physics bones without parents
-                    if boneName in physics_set and bone.parent is None:
-                        # Angles are rearranged in to_json() function, so we have to rearrange them here
-                        frame_obj.ang = Euler((angle_offset.z, angle_offset.x, angle_offset.y))
-                        frame_obj.pos = pos_offset
-                    data[str(frame)][str(boneIndex)] = frame_obj.to_json()
+        # Matrices with respect to rest pose
+        for bone_index, bone_name in enumerate(self.map):
+            bone = self.armature.pose.bones.get(bone_name)
+            # Prevent "doubling" on the physics movement
+            if bone:
+                frame_obj = BoneFrame(bone=bone)
+                if bone_name not in physics_set:
+                    frame_obj.calculate(evaluator.get_bone_matrix(self.armature, frame, bone))
+                # Check for root physics bones: physics bones without parents
+                if bone_name in physics_set and bone.parent is None:
+                    # Angles are rearranged in to_json() function, so we have to rearrange them here
+                    frame_obj.ang = Euler((self.angle_offset.z, self.angle_offset.x, self.angle_offset.y))
+                    frame_obj.pos = self.pos_offset
+                data[str(bone_index)] = frame_obj.to_json()
 
         return data
 
@@ -624,6 +752,8 @@ class SMHFrameData():
 
     def bake_modifiers(self, modifiers: dict):
         for name, data in modifiers.items():
+            if name in known_modifiers:
+                continue
             self.builder.add_data(name, data)
             if self.type == '3':
                 self.builder.add_description('Modifier', name)
@@ -655,13 +785,22 @@ class SMHExporter():
     frame_range: tuple[int, int, int]
     action: bpy.types.Action
     armature: ArmatureObject
-    bone_frames: dict[str, dict[str, BoneData]] | None
-    physbone_frames: dict[str, dict[str, PhysBoneData]] | None
-    modifier_frames: dict[str, dict[str, ModifierData]] | None
-    flex_frames: dict[str, dict[str, FlexData]] | None
-    camera_frames: dict[str, dict[str, CameraData]] | None
+    bone_frames: BoneFrames | None
+    physbone_frames: PhysBoneFrames | None
+    modifier_frames: ModifierFrames | None
+    flex_frames: FlexFrames | None
+    camera_frames: CameraFrames | None
+    evaluator: FrameEvaluator
 
-    def __init__(self, action: bpy.types.Action, armature: ArmatureObject, frame_step: int, use_scene_range: bool):
+    data: SMHEntityResult
+
+    def __init__(
+            self,
+            action: bpy.types.Action,
+            armature: ArmatureObject,
+            frame_step: int,
+            use_scene_range: bool,
+            evaluator: FrameEvaluator):
         scene = bpy.context.scene
         self.frame_range = (
             floor(scene.frame_start if use_scene_range else action.frame_start),
@@ -670,6 +809,7 @@ class SMHExporter():
         )
         self.armature = armature
         self.action = action
+        self.evaluator = evaluator
 
         self.physbone_frames = None
         self.bone_frames = None
@@ -678,13 +818,11 @@ class SMHExporter():
         self.camera_frames = None
 
     def prepare_camera(self, physics_obj_map: BoneMap):
-        camera_frames = CameraFrames(self.armature, self.frame_range)
-        self.physbone_frames = camera_frames.to_json(map=physics_obj_map)
-        self.camera_frames = camera_frames.to_json2(self.modifier_frames)
+        self.camera_frames = CameraFrames(self.armature, self.frame_range, map=physics_obj_map)
 
     def prepare_physics(self, physics_obj_map: BoneMap):
         self.physbone_frames = PhysBoneFrames(
-            self.armature, self.frame_range).to_json(map=physics_obj_map)
+            self.armature, self.frame_range, map=physics_obj_map)
 
     def prepare_bones(
             self,
@@ -694,25 +832,59 @@ class SMHExporter():
             pos_offset: Vector = Vector()):
         self.bone_frames = BoneFrames(
             self.armature,
-            self.frame_range
-        ).to_json(
+            self.frame_range,
             map=bone_map,
             physics_map=physics_obj_map,
             angle_offset=angle_offset,
-            pos_offset=pos_offset
+            pos_offset=pos_offset,
         )
 
     def prepare_flexes(self, shapekey_object: bpy.types.Mesh, flex_map: BoneMap):
+        self.evaluator.initialize_shapekey_range(shapekey_object)
         self.flex_frames = FlexFrames(
             armature=self.armature,
             shapekey_object=shapekey_object,
-            frame_range=self.frame_range).to_json(map=flex_map)
+            frame_range=self.frame_range,
+            map=flex_map)
 
     def prepare_modifiers(self):
         self.modifier_frames = ModifierFrames(
-            self.armature, self.frame_range).to_json()
+            self.armature, self.frame_range)
 
-    def export(self, data: SMHEntityResult, export_props: SMHExportProperties):
+    def prepare(self):
+        self.data = {}
+        self.data["Frames"] = {}  # type: ignore
+        for frame in range(self.frame_range[0], self.frame_range[1], self.frame_range[2]):
+            self.evaluator.set_frame(frame)
+            self.data["Frames"][frame] = {
+                "EntityData": {}
+            }
+
+            if self.physbone_frames:
+                self.data["Frames"][frame]["EntityData"]["physbones"] = self.physbone_frames.to_json(
+                    frame=frame, evaluator=self.evaluator)
+            if self.bone_frames:
+                self.data["Frames"][frame]["EntityData"]["bones"] = self.bone_frames.to_json(
+                    frame=frame, evaluator=self.evaluator)
+            if self.modifier_frames:
+                modifiers = self.modifier_frames.to_json(frame)
+                for name, data in modifiers.items():
+                    self.data["Frames"][frame]["EntityData"][name] = data
+            if self.flex_frames:
+                self.data["Frames"][frame]["EntityData"]["flex"] = self.flex_frames.to_json(
+                    frame=frame, evaluator=self.evaluator)
+            if self.camera_frames:
+                self.data["Frames"][frame]["EntityData"]["physbones"] = self.camera_frames.to_json(
+                    frame=frame, evaluator=self.evaluator)
+                cam_data = self.data["Frames"][frame]["EntityData"].get("advcamera")
+                self.data["Frames"][frame]["EntityData"]["advcamera"] = self.camera_frames.to_json2(
+                    frame=frame, modifier_frames=cam_data, evaluator=self.evaluator)
+
+        if self.flex_frames:
+            self.evaluator.reset_shapekey_range(self.flex_frames.shapekey_object)
+        self.evaluator.reset_frame()
+
+    def export(self, out_data: SMHEntityResult, export_props: SMHExportProperties):
         """Iterate over the action or scene frame range and write pose and modifier data for the current action
 
 
@@ -726,34 +898,36 @@ class SMHExporter():
             if export_props.keyframes_only and not has_keyframe(self.action.fcurves, frame):
                 continue
 
+            frame_data = self.data["Frames"][frame]["EntityData"]
+
             if export_props.smh_version == '3':
                 if self.physbone_frames:
                     physbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
-                    physbone_frame.bake_physbones(physbones=self.physbone_frames[str(frame)])
+                    physbone_frame.bake_physbones(physbones=frame_data["physbones"])
                     physbone_frame.build()
-                    data["Frames"].append(physbone_frame.data)
+                    out_data["Frames"].append(physbone_frame.data)
 
                 if self.bone_frames:
                     nonphysbone_frame = SMHFrameData(
                         type=export_props.smh_version, armature=self.armature, position=frame)
-                    nonphysbone_frame.bake_bones(bones=self.bone_frames[str(frame)])
+                    nonphysbone_frame.bake_bones(bones=frame_data["bones"])
                     nonphysbone_frame.build()
-                    data["Frames"].append(nonphysbone_frame.data)
+                    out_data["Frames"].append(nonphysbone_frame.data)
 
             else:
                 entity_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
                 if self.physbone_frames:
-                    entity_frame.bake_physbones(physbones=self.physbone_frames[str(frame)])
+                    entity_frame.bake_physbones(physbones=frame_data["physbones"])
                 if self.bone_frames:
-                    entity_frame.bake_bones(bones=self.bone_frames[str(frame)])
+                    entity_frame.bake_bones(bones=frame_data["bones"])
                 if self.modifier_frames:
-                    entity_frame.bake_modifiers(modifiers=self.modifier_frames[str(frame)])
+                    entity_frame.bake_modifiers(modifiers=frame_data)
                 if self.camera_frames:
-                    entity_frame.bake_camera(camera=self.camera_frames[str(frame)])
+                    entity_frame.bake_camera(camera=frame_data["advcamera"])
                 # This will override the modifier data
                 # TODO: Make it only override values that it has data for
                 if self.flex_frames:
-                    entity_frame.bake_flexes(flex=self.flex_frames[str(frame)])
+                    entity_frame.bake_flexes(flex=frame_data["flex"])
                 entity_frame.build()
 
-                data["Frames"].append(entity_frame.data)
+                out_data["Frames"].append(entity_frame.data)

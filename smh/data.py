@@ -10,7 +10,7 @@ from .types.entity import SMHEntityBuilder, SMHEntityResult
 
 from .props import SMHMetaData, SMHProperties, SMHExportProperties, SMHImportProperties
 
-from .exporter import SMHExporter as exp
+from .exporter import SMHExporter as exp, FCurveEvaluator, VisualKeyingEvaluator
 from .importer import SMHImporter as imp
 
 camera_map = ['static_prop']
@@ -52,13 +52,19 @@ class SMHEntity():
         physics_obj_map = load_map(bpy.path.abspath(self.metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(self.metadata.bone_path))
         flex_map = None
-        if self.metadata.export_shapekeys_to_flex:
+        if self.metadata.export_shapekeys_to_flex and self.metadata.flex_path:
             flex_map = load_map(bpy.path.abspath(self.metadata.flex_path))
         elif self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
             flex_map = [shape_key.name for shape_key in shapekey_object.shape_keys.key_blocks]
 
-        exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
+        exporter = exp(
+            action=action,
+            armature=self.armature,
+            use_scene_range=use_scene_range,
+            frame_step=frame_step,
+            evaluator=VisualKeyingEvaluator(
+                bpy.context.scene.frame_current) if export_props.visual_keying else FCurveEvaluator())
         exporter.prepare_physics(physics_obj_map=physics_obj_map)
         exporter.prepare_bones(
             bone_map=bone_map,
@@ -68,8 +74,9 @@ class SMHEntity():
         exporter.prepare_modifiers()
         if self.metadata.export_shapekeys_to_flex and self.metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = self.metadata.shapekey_object
-            if shapekey_object.shape_keys.animation_data.action and shapekey_object.shape_keys.animation_data.action.fcurves:
-                exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
+            exporter.prepare_flexes(self.metadata.shapekey_object, flex_map)
+
+        exporter.prepare()
         exporter.export(self.data, export_props=export_props)
 
         return self.data
@@ -84,10 +91,19 @@ class SMHEntity():
 
         physics_obj_map = camera_map
 
-        exporter = exp(action=action, armature=self.armature, use_scene_range=use_scene_range, frame_step=frame_step)
+        exporter = exp(
+            action=action,
+            armature=self.armature,
+            use_scene_range=use_scene_range,
+            frame_step=frame_step,
+            evaluator=VisualKeyingEvaluator(
+                bpy.context.scene.frame_current) if export_props.visual_keying else FCurveEvaluator())
         exporter.prepare_modifiers()
         exporter.prepare_camera(physics_obj_map=physics_obj_map)
+
+        exporter.prepare()
         exporter.export(self.data, export_props=export_props)
+        exporter.evaluator.reset_frame()
 
         return self.data
 
@@ -154,7 +170,7 @@ class SMHEntity():
         physics_obj_map = load_map(bpy.path.abspath(metadata.physics_obj_path))
         bone_map = load_map(bpy.path.abspath(metadata.bone_path))
         flex_map = None
-        if metadata.import_flex_to_shapekeys:
+        if metadata.import_flex_to_shapekeys and metadata.flex_path:
             flex_map = load_map(bpy.path.abspath(metadata.flex_path))
         elif metadata.shapekey_object:
             shapekey_object: bpy.types.Mesh = metadata.shapekey_object
@@ -245,6 +261,8 @@ class SMHEntity():
             return cls.bake_to_armature(data, import_props, metadata, filename, object)
         elif object.type == 'CAMERA':
             return cls.bake_to_camera(data, import_props, metadata, filename, object)
+
+        return False, "Object is not an armature or camera"
 
 
 class SMHFile():

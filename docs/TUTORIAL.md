@@ -7,6 +7,7 @@
   - [Blender to Stop Motion Helper](#blender-to-stop-motion-helper)
     - [Exporting Shapekeys](#exporting-shapekeys)
     - [Exporting Camera Animations](#exporting-camera-animations)
+    - [Exporting Constraints and Drivers](#exporting-constraints-and-drivers)
   - [Stop Motion Helper to Blender](#stop-motion-helper-to-blender)
     - [Importing Shapekeys](#importing-shapekeys)
     - [Importing Camera Animations](#importing-camera-animations)
@@ -95,13 +96,18 @@ Notice that the name of the file is the name of the action.
 
 ![blender-to-smh-flex-config](/media//blender-to-smh-flex-config.PNG)
 
-Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Export shapekeys to flexes` before exporting
+Starting in version 0.6.0, this addon can directly export shapekey animations from your mesh. To ensure shapekeys are exported correctly, you must meet the following pre-requisites:
+
+- Assign either a flex map or a shapekey mesh or both in the `Configuration`,
+- Check `Export shapekeys to flexes`, and
+- Ensure `Solo Active Shape Key` is disabled (look by a pin or star icon).
 
 There are a few quirks to learn about when exporting shapekeys to flexes:
 
 - To guarantee a close to one-to-one shapekey animation between GMod and Blender, you must satisfy the following:
   - Have the same shapekeys (flexes) and faceposing values (flex controllers) in your mesh, case sensitive;
   - Flex equations (e.g. %CloseLidLoL = (min(max((eyes_updown - -45) / (45 - -45), 0), 1))) must be linear to a single variable (e.g. %AH = AH. The earlier example does not count because of the min/max functions)
+  - Supply a flex map. If no flex map is used, it will use its existing shapekeys as the flex map. This may not guarantee one-to-one shapekey animations if the shapekey order in Blender does not match the order in GMod  
 - If flex modifier from a previous session has been used, and one attempts to export both shapekey animations and flex modifier data, shapekey animations will always override them.
 
 ### Exporting Camera Animations
@@ -113,6 +119,12 @@ Note that if there are keyframes to animate a camera's focal length, then these 
 The following video demonstrates exporting a Blender camera animation into GMod.
 
 https://github.com/user-attachments/assets/54c1e827-718c-4f2f-9b80-f7c03813a260
+
+### Exporting Constraints and Drivers
+
+Version 0.9.0 adds a `Visual Keying` option when you click the `Export SMH File` button. This exports animations with constraints, drivers, or custom modifiers applied (e.g. Blender Jiggle Physics by naelstrof). This works in a similar fashion to performing `Bake action` for each armature, in that it "bakes" a bone's pose or camera's position as viewed in the scene. Constraints and driver expressions are preserved with this option.
+
+`Visual Keying` is enabled by default because exports are 1.3 to 1.8 times faster than it being disabled.
 
 ## Stop Motion Helper to Blender
 
@@ -155,7 +167,11 @@ Play back the animation to ensure everything is in place. If necessary, export t
 
 ### Importing Shapekeys
 
-Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. Provide it a flex map and the object which contains your shapekeys, and then check the `Import shapekeys to flexes` before importing.
+Starting in version 0.6.0, this addon can directly import face-posing animations from your mesh. To successfully import into a mesh's shapekeys, you must meet the following pre-requisites:
+
+- Assign either a flex map or a shapekey mesh or both in the `Configuration`,
+- Check `Import shapekeys to flexes`, and
+- Ensure `Solo Active Shape Key` is disabled (look by a pin or star icon).
 
 See [Exporting Shapekeys](#exporting-shapekeys) for more info on the quirks. In addition, importing may incur animation data loss if the shapekey does not exist for the character. This can occur if the qc file uses flexpairs, or if one makes the flexes using HWM or FACS.
 

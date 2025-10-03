@@ -21,12 +21,14 @@ from .smh.data import SMHFile
 from .smh.modifiers import register_modifiers, unregister_modifiers
 from .smh.types.shared import ArmatureObject, CameraObject
 
+import time
+
 bl_info = {
     "name": "SMH Importer/Exporter",
     "author": "vlazed",
     "description": "Exchange animations between Blender and Garry's Mod",
-    "blender": (2, 80, 0),
-    "version": (0, 8, 0),
+    "blender": (4, 4, 0),
+    "version": (0, 9, 0),
     "location": "",
     "warning": "",
     "category": "Animation",
@@ -92,8 +94,10 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
         frame = layout.row()
         frame.enabled = not export_props.keyframes_only
         frame.prop(export_props, "frame_step")
+        key = layout.row()
+        key.prop(export_props, "batch")
+        key.prop(export_props, "visual_keying")
         col = layout.column()
-        col.prop(export_props, "batch")
         col.prop(export_props, "smh_version")
 
         # # This won't show up in older versions of Blender. Nonetheless, this is certainly cosmetic
@@ -108,9 +112,9 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
-    def check_armature(
+    def check_object(
             self,
-            armature: ArmatureObject,
+            armature: ArmatureObject | CameraObject,
             metadata: SMHMetaData,
             properties: SMHProperties,
             selected_metadata: SMHMetaData):
@@ -152,43 +156,58 @@ class SMH_OT_BlenderToSMH(bpy.types.Operator):
                 "No animation found. Make sure that the selected armature has an `Animation`", "Error", 'ERROR')
             return {'CANCELLED'}
 
-        armatures: list[ArmatureObject] = []
+        exportables: list[ArmatureObject | CameraObject] = []
+        exportable_set = set()
         if export_props.batch:
-            for armature in bpy.data.objects:
-                if armature.type in acceptable_types:
-                    metadata: SMHMetaData = armature.smh_metadata
-                    properties: SMHProperties = armature.smh_properties
-                    if self.check_armature(armature, metadata, properties, selected_metadata):
-                        armatures.append(armature)
+            for object in bpy.data.objects:
+                if object.type in acceptable_types:
+                    metadata: SMHMetaData = object.smh_metadata
+                    properties: SMHProperties = object.smh_properties
+                    if self.check_object(object, metadata, properties, selected_metadata):
+                        exportables.append(object)
+                        exportable_set.add(object)
         else:
-            if self.check_armature(
+            if self.check_object(
                     selected_armature,
                     selected_metadata,
                     selected_properties,
                     selected_metadata=selected_metadata
             ):
-                armatures.append(selected_armature)
+                exportables.append(selected_armature)
+                exportable_set.add(selected_armature)
 
-        if not armatures:
+        if not exportables:
             show_message(
                 "Selected armature or armatures in scene did not pass. Check the message boxes to figure out the issue",
                 "Error",
                 'ERROR')
             return {'CANCELLED'}
 
+        # Hide all visible non-armature objects to avoid unnecessary scene calculations
+        hidden_objects = [obj for obj in bpy.data.objects if obj not in exportable_set and not obj.hide_viewport]
+
+        start_time = time.perf_counter()
         filename = action.name + ".txt"
 
-        contents = SMHFile().serialize(armatures=armatures, properties=selected_properties, export_props=export_props)
+        for obj in hidden_objects:
+            obj.hide_viewport = True
         try:
+            contents = SMHFile().serialize(armatures=exportables, properties=selected_properties, export_props=export_props)
             with open(bpy.path.abspath(selected_metadata.savepath + filename), "w+") as f:
                 f.write(contents)
         except Exception as e:
             show_message(
                 f"SMH Exporter: An error as occurred during the process: {e}", "Error", 'ERROR')
             return {'CANCELLED'}
+        finally:
+            for obj in hidden_objects:
+                obj.hide_viewport = False
 
+        end_time = time.perf_counter()
         show_message(
             f"SMH Exporter: Successfully wrote save file to {selected_metadata.savepath + filename}", "Save success")
+
+        self.report({'INFO'}, f"SMH Exporter: Finished in {end_time - start_time:.4f} seconds")
         return {'FINISHED'}
 
 
@@ -317,12 +336,15 @@ class SMH_OT_SMHToBlender(bpy.types.Operator):
         selected_metadata: SMHMetaData = selected_armature.smh_metadata
 
         converter = SMHConverter(selected_metadata, import_props)
+        start_time = time.perf_counter()
         if import_props.batch:
             for armature in bpy.data.objects:
                 converter.convert(armature)
         else:
             converter.convert(selected_armature)
+        end_time = time.perf_counter()
 
+        self.report({'INFO'}, f"SMH Importer: Finished in {end_time - start_time:.4f} seconds")
         return {'FINISHED'}
 
 
