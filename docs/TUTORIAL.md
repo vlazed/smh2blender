@@ -138,11 +138,15 @@ For animations to properly show undistorted on a model in Blender, the following
   - To ensure that animations appear the way they should between Blender and SMH, the model must be decompiled with Crowbar and then loaded into Blender (how to find the model is beyond the scope of this tutorial), with the skeleton standing up along the z-axis.
 - All pose bones in the Blender armature must be in the **XYZ or QUATERNION** rotation modes.
 
-Importing animations from SMH is much more restrictive than exporting them. For one, Blender armature animations are defined in the pose space, but SMH exports its animations in the world space, with additional information about the bones in its local to parent space. To ensure animations are imported correctly, we now require a **Reference** animation file, which is a SMH animation file of the model in its reference pose sequence. This reference pose must match the one seen in Blender (a zombie's "stand pose" is not the same as its reference pose).
+Importing animations from SMH is much more restrictive than exporting them. For one, Blender armature animations are defined in the pose space, but SMH exports its animations in the world space, with additional information about the bones in its local to parent space. To ensure animations are imported correctly, we now require a **Reference** animation file, which is a SMH animation file of the model in its reference pose sequence, with its reference facing the same direction as the direction in Blender. This reference pose must match the one seen in Blender (a zombie's "stand pose" is not the same as its reference pose).
 
-To generate a reference animation file,
+To generate a reference animation file, use the features in the script and Stop Motion Helper to do the following,
+
+![gmod-angle-offset](/media/gmod-angle-offset.png)
 
 1. Put the model in reference pose (use Stand Poser or Ragdoll Puppeteer, which ever puts it to the correct reference pose),
+   - The reference pose in GMod and Blender must match. It must face the same orientation in Blender and in GMod.
+   - The `Set Reference Pose` button helps ensure this. If the angle is off, use the `Reference Angle Offset` slider to set the corrections in 90-degree intervals.
 2. Select the entity with SMH, and record one keyframe in any frame position.
 3. Save the animation file, and load it in the Configurations menu.
 4. Provide the name of the entity from the reference file (typically the model name, unless the animator gave it a different name).
