@@ -901,13 +901,13 @@ class SMHExporter():
             frame_data = self.data["Frames"][frame]["EntityData"]
 
             if export_props.smh_version == '3':
-                if self.physbone_frames:
+                if frame_data.get("physbones"):
                     physbone_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
                     physbone_frame.bake_physbones(physbones=frame_data["physbones"])
                     physbone_frame.build()
                     out_data["Frames"].append(physbone_frame.data)
 
-                if self.bone_frames:
+                if frame_data.get("bones"):
                     nonphysbone_frame = SMHFrameData(
                         type=export_props.smh_version, armature=self.armature, position=frame)
                     nonphysbone_frame.bake_bones(bones=frame_data["bones"])
@@ -916,17 +916,17 @@ class SMHExporter():
 
             else:
                 entity_frame = SMHFrameData(type=export_props.smh_version, armature=self.armature, position=frame)
-                if self.physbone_frames:
+                if frame_data.get("physbones"):
                     entity_frame.bake_physbones(physbones=frame_data["physbones"])
-                if self.bone_frames:
+                if frame_data.get("bones"):
                     entity_frame.bake_bones(bones=frame_data["bones"])
                 if self.modifier_frames:
                     entity_frame.bake_modifiers(modifiers=frame_data)
-                if self.camera_frames:
+                if frame_data.get("advcamera"):
                     entity_frame.bake_camera(camera=frame_data["advcamera"])
                 # This will override the modifier data
                 # TODO: Make it only override values that it has data for
-                if self.flex_frames:
+                if frame_data.get("flex"):
                     entity_frame.bake_flexes(flex=frame_data["flex"])
                 entity_frame.build()
 
