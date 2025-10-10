@@ -520,10 +520,6 @@ class SMHImporter:
             if not attr:
                 continue
 
-            # Do not import flex as a modifier if we want to import it to the shapekeys
-            if name == 'flex' and metadata.import_flex_to_shapekeys:
-                continue
-
             props = [prop for prop in attr.bl_rna.properties if prop.is_runtime]
             frames = [m.frame for m in mod_list]
             for prop in props:
