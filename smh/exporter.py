@@ -422,7 +422,7 @@ class BoneFrame(Frame):
     def calculate(self, matrix: Matrix):
         rest_matrix = self.bone.matrix_basis
 
-        self.pos = matrix.translation - rest_matrix.translation
+        self.pos = matrix.translation
         self.scale = matrix.to_scale()
 
         rest_matrix.to_3x3().rotate(matrix.to_euler(ORDER))
