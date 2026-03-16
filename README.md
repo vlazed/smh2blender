@@ -16,11 +16,11 @@ Exchange animations between Garry's Mod Stop Motion Helper and Blender
 
 ## Description
 
-This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SMH) and Blender; it can generate an SMH 4.0 animation file from a Blender action and vice versa, given that we tell Blender how GMod defines the collision model and bone hierarchy of its entities.
+This Blender addon is an importer/exporter for animations between Garry's Mod and Blender; it can export a Stop Motion Helper animation file from a Blender action or import into an armature, given that we tell Blender how GMod defines the collision model and bone hierarchy of its entities.
 
 ### Requirements
 
-- [Script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone maps
+- [GMod script](https://gist.github.com/vlazed/51a624b3e02ca90b7eaf9ea72c919ceb) to help with obtaining physics maps and bone maps
 - Blender 4.4 and up
   - This addon is also confirmed to work in Blender 3.6, but it is considered legacy.  
 - Some knowledge with using [Crowbar](https://steamcommunity.com/groups/CrowbarTool) to decompile models
@@ -50,7 +50,7 @@ This Blender addon is a bridge between Garry's Mod (GMod) Stop Motion Helper (SM
 
 If you have found a bug, or you have a suggestion to improve this tool, please report it in the [issue tracker](https://github.com/vlazed/smh2blender/issues). This is the best way for me to act on them.
 
-## Gotchas
+## Tips
 
 - This addon works the best when a majority of the ragdoll's bones have physics objects. More physics objects improve the accuracy of the animation between Blender and SMH. See this [GMod addon](https://steamcommunity.com/sharedfiles/filedetails/?id=3315493382) for an example that adds more physics objects to a group of ragdolls.
   - This is mostly an issue when nonphysical bones (bones without a physics object) have a physical bone as its descendant (such as `bip_spine_3` and `bip_head`)
