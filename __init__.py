@@ -317,7 +317,9 @@ class SMH_OT_SMHToBlender(bpy.types.Operator):
         layout = self.layout
 
         col = layout.column()
-        col.prop(import_props, "batch")
+        row = col.row()
+        row.prop(import_props, "batch")
+        row.prop(import_props, "inherit_scale")
         col.prop(import_props, "smh_version")
 
     def invoke(self, context, event):

@@ -428,8 +428,6 @@ class SMHImporter:
         else:
             matrices = [row[index].matrix for row in data]
 
-        frames = [row[index].frame for row in data]
-
         pos = [
             (matrix.translation.x for matrix in matrices),
             (matrix.translation.y for matrix in matrices),
@@ -447,7 +445,25 @@ class SMHImporter:
             (matrix.to_euler().z for matrix in matrices),
         ]
 
-        return pos, ang, frames
+        return pos, ang
+
+    @staticmethod
+    def get_frames(data: list[list[PhysBoneField | BoneField]], index: int):
+        return [row[index].frame for row in data]
+
+    @staticmethod
+    def get_scale(
+        data: list[list[PhysBoneField | BoneField]], index: int
+    ):
+        matrices: list[Matrix] = [row[index].matrix for row in data]
+
+        scale = [
+            (matrix.to_scale().x for matrix in matrices),
+            (matrix.to_scale().y for matrix in matrices),
+            (matrix.to_scale().z for matrix in matrices)
+        ]
+
+        return scale
 
     def fcurves_from_pose(
         self,
@@ -473,6 +489,18 @@ class SMHImporter:
             [self.create_fc(
                 index=index, samples=samples, data_path=data_path,
                 group_name=name, frames=frames) for index, samples in enumerate(ang) if samples is not None]
+
+    def fcurves_from_scale(
+        self,
+        scale: list[Generator[float, None, None]],
+        frames: list[float],
+        name: str,
+        bone: bpy.types.PoseBone,
+    ):
+        data_path = bone.path_from_id('scale')
+        [self.create_fc(
+            index=index, samples=samples, data_path=data_path,
+            group_name=name, frames=frames) for index, samples in enumerate(scale)]
 
     def fcurves_from_camera_pose(
         self,
@@ -591,7 +619,8 @@ class SMHImporter:
                       physbone_data: list[list[PhysBoneField]],
                       cam_data: dict[str, list[ModifierField]]):
         for index, phys_name in enumerate(self.physics_obj_map):
-            pos, ang, frames = self.get_pose(
+            frames = self.get_frames(data=physbone_data, index=index)
+            pos, ang = self.get_pose(
                 data=physbone_data,
                 index=index,
                 bone=self.armature,
@@ -643,7 +672,9 @@ class SMHImporter:
             if not bone:
                 continue
 
-            pos, ang, frames = self.get_pose(
+            frames = self.get_frames(data=physbone_data, index=index)
+
+            pos, ang = self.get_pose(
                 data=physbone_data,
                 index=index,
                 bone=bone,
@@ -662,13 +693,29 @@ class SMHImporter:
                 location_condition=metadata.import_stretch or self.physics_tree.get_parent(phys_name) is None
             )
 
-    def import_bones(self, bone_data: list[list[BoneField]]):
+    def import_bones(self, bone_data: list[list[BoneField]], inherit_scale: bool):
         for index, bone_name in enumerate(self.bone_map):
             bone = self.armature.pose.bones.get(bone_name)
-            if not bone or self.physics_tree.bone_dict.get(bone_name) is not None:
+            if not bone:
                 continue
 
-            pos, ang, frames = self.get_pose(
+            frames = self.get_frames(data=bone_data, index=index)
+            scale = self.get_scale(data=bone_data, index=index)
+
+            if not inherit_scale:
+                self.armature.data.bones[bone.name].inherit_scale = 'NONE'
+
+            self.fcurves_from_scale(
+                scale,
+                frames,
+                name=bone_name,
+                bone=bone,
+            )
+
+            if self.physics_tree.bone_dict.get(bone_name) is not None:
+                continue
+
+            pos, ang = self.get_pose(
                 data=bone_data,
                 index=index,
                 bone=bone,

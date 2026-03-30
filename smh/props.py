@@ -119,6 +119,11 @@ class SMHImportProperties(bpy.types.PropertyGroup):
         "Batch Import",
         "Import the selected armature's animation file for all armatures in the scene. The name property from each armature's Import Settings will reference the selected armature's animation file"
     )
+    inherit_scale: BoolProperty(
+        name="Inherit scale",
+        description="Keep default scale inheritance property with respect to its parents. If checked, the scaled animation may not match the Source Engine representation",
+        default=False
+    )
 
 
 class SMHMetaData(bpy.types.PropertyGroup):

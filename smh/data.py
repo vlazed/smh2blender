@@ -191,7 +191,7 @@ class SMHEntity():
             action=action,
             entity=entity,
             flex_map=flex_map)
-        importer.import_bones(bone_data)
+        importer.import_bones(bone_data, import_props.inherit_scale)
         importer.import_physics(physbone_data, metadata)
         if flex_data:
             importer.import_flex(flex_data, metadata)
