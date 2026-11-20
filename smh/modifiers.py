@@ -10,8 +10,10 @@ from bpy.props import FloatProperty, FloatVectorProperty, PointerProperty, Colle
 
 class AdvancedCamera(bpy.types.PropertyGroup):
     FOV: FloatProperty(name="FOV", min=0, max=179.99, default=75, options={'ANIMATABLE'})
-    Nearz: FloatProperty(name="NearZ", min=0, options={'ANIMATABLE'})
-    Farz: FloatProperty(name="FarZ", min=0, options={'ANIMATABLE'})
+    Nearz: FloatProperty(name="Nearz", min=0, options={'ANIMATABLE'})
+    Farz: FloatProperty(name="Farz", min=0, options={'ANIMATABLE'})
+    NearZ: FloatProperty(name="NearZ", min=0, options={'ANIMATABLE'})
+    FarZ: FloatProperty(name="FarZ", min=0, options={'ANIMATABLE'})
     Roll: FloatProperty(name="Roll", min=0, options={'ANIMATABLE'})
     Offset: FloatVectorProperty(name="Offset", default=(0, 0, 0), options={'ANIMATABLE'})
 

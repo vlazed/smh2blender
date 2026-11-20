@@ -557,7 +557,10 @@ class SMHImporter:
                     samples = [m.data for m in mod_list]
                 else:
                     # Set the value for each property
-                    samples = [m.data[prop.identifier] for m in mod_list]
+                    samples = [m.data.get(prop.identifier) for m in mod_list if m.data.get(prop.identifier) is not None]
+                if len(samples) == 0:
+                    continue
+
                 prop_obj = getattr(attr, prop.name, None)
 
                 if prop_obj is not None and prop.type == 'COLLECTION':
