@@ -32,7 +32,10 @@ class CameraData(TypedDict):
     Roll: float
     Nearz: float
     Farz: float
+    NearZ: float
+    FarZ: float
     Offset: list[float]
+    ViewOffset: list[float]
 
 
 class SMHEntityDataDict(TypedDict):

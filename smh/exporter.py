@@ -517,14 +517,20 @@ class CameraFrame(Frame):
             "FOV": self.fov,
             "Nearz": 0,
             "Farz": 0,
+            "NearZ": 0,
+            "FarZ": 0,
             "Roll": 0,
             "Offset": self.vec_to_str(Vector(), sign=(1, 1, 1)),
+            "ViewOffset": self.vec_to_str(Vector(), sign=(1, 1, 1)),
         }
         if other_data:
             data["Roll"] = other_data["Roll"]
-            data["Farz"] = other_data["Farz"]
-            data["Nearz"] = other_data["Nearz"]
-            data["Offset"] = other_data["Offset"]
+            data["Farz"] = other_data.get("Farz") or other_data.get("FarZ")
+            data["Nearz"] = other_data.get("Nearz") or other_data.get("NearZ")
+            data["FarZ"] = other_data.get("Farz") or other_data.get("FarZ")
+            data["NearZ"] = other_data.get("Nearz") or other_data.get("NearZ")
+            data["Offset"] = other_data.get("Offset") or other_data.get("ViewOffset")
+            data["ViewOffset"] = other_data.get("Offset") or other_data.get("ViewOffset")
 
         return data
 
